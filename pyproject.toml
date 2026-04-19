@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jax-qc"
+version = "0.1.0"
+description = "A JAX-native functional quantum chemistry framework"
+requires-python = ">=3.10"
+readme = "README.md"
+license = {file = "LICENSE"}
+dependencies = [
+    "jax>=0.4.30",
+    "jaxlib>=0.4.30",
+    "chex>=0.1.8",
+    "basis-set-exchange>=0.9",
+    "pyyaml>=6.0",
+    "numpy>=1.24",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0",
+]
+full = [
+    "pyscf>=2.4",
+]
+
+[tool.setuptools.packages.find]
+include = ["jax_qc*"]
+exclude = ["tests*", "benchmarks*", "fp*", "examples*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
