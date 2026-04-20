@@ -23,6 +23,8 @@ from jax_qc.integrals.interface import compute_integrals
 from jax_qc.io.xyz import read_xyz, write_xyz
 from jax_qc.profiling.timer import StageTimer
 from jax_qc.profiling.report import format_report
+from jax_qc.scf.interface import run_scf
+from jax_qc.scf.rhf import run_rhf
 
 __all__ = [
     "Primitive",
@@ -39,6 +41,8 @@ __all__ = [
     "write_xyz",
     "StageTimer",
     "format_report",
+    "run_scf",
+    "run_rhf",
 ]
 
 __version__ = "0.1.0"
