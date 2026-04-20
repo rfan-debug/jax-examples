@@ -14,6 +14,7 @@ import pathlib, sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 import jax_qc
 from jax_qc.core.types import make_molecule
+from examples._colors import banner, header, label, ok, value
 
 
 def main() -> None:
@@ -23,24 +24,36 @@ def main() -> None:
         atomic_numbers=jnp.array([2, 1], dtype=jnp.int32),
         charge=+1,
     )
-    print(f"Molecule: HeH+  ({heh.elements})")
-    print(f"  Z total       = {int(jnp.sum(heh.atomic_numbers))}")
-    print(f"  charge        = {heh.charge}")
-    print(f"  n_electrons   = {heh.n_electrons} (closed-shell 2-electron system)")
+    print(banner("HeH+ — Charged Heteronuclear System"))
+    print(f"{label('elements')}    : {heh.elements}")
+    print(f"{label('Z total')}     : {value(str(int(jnp.sum(heh.atomic_numbers))))}")
+    print(f"{label('charge')}      : {value(str(heh.charge))}")
+    print(
+        f"{label('electrons')}   : {value(str(heh.n_electrons))}  "
+        f"{ok('(closed-shell 2-electron system)')}"
+    )
 
     basis = jax_qc.build_basis_set(heh, "sto-3g")
-    print(f"\nBasis: sto-3g  (n_basis={basis.n_basis}, {len(basis.shells)} shells)")
+    print()
+    print(header(f"Basis: sto-3g  (n_basis={basis.n_basis}, {len(basis.shells)} shells)"))
     for i, shell in enumerate(basis.shells):
         center = np.asarray(shell.center)
         print(
-            f"  Shell {i}: atom {shell.atom_index} ({heh.elements[shell.atom_index]}), "
+            f"  {label(f'Shell {i}')}: atom {shell.atom_index} "
+            f"({value(heh.elements[shell.atom_index])}), "
             f"l={shell.angular_momentum}, center={center.tolist()}"
         )
 
-    # Try a bigger basis to show that BSE names just work.
+    # Bigger basis — BSE names just work.
     basis_ccpvdz = jax_qc.build_basis_set(heh, "cc-pVDZ")
-    print(f"\nBasis: cc-pVDZ (n_basis={basis_ccpvdz.n_basis}, "
-          f"{len(basis_ccpvdz.shells)} shells)")
+    print()
+    print(
+        header(
+            f"Basis: cc-pVDZ  (n_basis={basis_ccpvdz.n_basis}, "
+            f"{len(basis_ccpvdz.shells)} shells)",
+            color="bright_green",
+        )
+    )
 
 
 if __name__ == "__main__":

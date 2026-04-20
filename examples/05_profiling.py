@@ -13,6 +13,7 @@ import pathlib, sys
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 import jax_qc
 from jax_qc.core.types import make_molecule
+from examples._colors import banner, header, label, value
 
 
 def _h2():
@@ -47,6 +48,7 @@ def _water():
 
 
 def main() -> None:
+    print(banner("StageTimer — Basis Construction Across Molecules"))
     timer = jax_qc.StageTimer(sync_device=False)
 
     with timer.stage("build_molecules", "pure"):
@@ -62,9 +64,14 @@ def main() -> None:
                 for basis_name in ("sto-3g", "6-31G", "6-31G*"):
                     with timer.stage(basis_name, "applicative"):
                         basis = jax_qc.build_basis_set(mol, basis_name)
-                        print(f"{name:<5s} / {basis_name:<8s} -> n_basis={basis.n_basis}")
+                        print(
+                            f"  {label(f'{name:<5s}')} / "
+                            f"{label(f'{basis_name:<8s}')} -> "
+                            f"{label('n_basis')}={value(str(basis.n_basis))}"
+                        )
 
     print()
+    print(header("Profiling report:"))
     print(timer.report())
 
 
