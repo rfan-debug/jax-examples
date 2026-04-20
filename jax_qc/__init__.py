@@ -19,6 +19,7 @@ from jax_qc.core.types import (
     CalcConfig,
 )
 from jax_qc.basis.build import build_basis_set
+from jax_qc.integrals.interface import compute_integrals
 from jax_qc.io.xyz import read_xyz, write_xyz
 from jax_qc.profiling.timer import StageTimer
 from jax_qc.profiling.report import format_report
@@ -33,6 +34,7 @@ __all__ = [
     "SCFResult",
     "CalcConfig",
     "build_basis_set",
+    "compute_integrals",
     "read_xyz",
     "write_xyz",
     "StageTimer",
