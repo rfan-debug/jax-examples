@@ -1,12 +1,8 @@
 """Kinetic energy integrals T_{mu nu} = <chi_mu | -1/2 nabla^2 | chi_nu>.
 
-Step 2: s-type shells only. The primitive s|T|s integral is
-
-    T_AB = mu * (3 - 2 mu |A-B|^2) * S_AB,
-
-where S_AB is the primitive overlap, p = alpha + beta, mu = alpha beta / p.
-
-FP: Applicative — independent over matrix positions.
+General-l implementation backed by the McMurchie-Davidson primitives
+in :mod:`jax_qc.integrals.obara_saika`. Spherical projection mirrors
+:mod:`jax_qc.integrals.overlap`.
 """
 
 from __future__ import annotations
@@ -18,11 +14,19 @@ import numpy as np
 
 from jax_qc.core.types import BasisSet, Shell
 from jax_qc.integrals.gaussian_product import distance_squared
-from jax_qc.integrals.overlap import overlap_primitive_ss, _assert_all_s
+from jax_qc.integrals.obara_saika import (
+    contracted_kinetic_block,
+    n_cartesian,
+)
+from jax_qc.integrals.overlap import (
+    _shell_block_spherical,
+    shell_offsets,
+)
+from jax_qc.integrals.overlap import overlap_primitive_ss
 
 
 def kinetic_primitive_ss(alpha, A, beta, B):
-    """Primitive s|T|s integral."""
+    """Analytic primitive s|T|s integral (Step 2 helper, kept for tests)."""
     p = alpha + beta
     mu = alpha * beta / p
     AB2 = distance_squared(A, B)
@@ -31,24 +35,25 @@ def kinetic_primitive_ss(alpha, A, beta, B):
 
 
 def kinetic_shell_pair_ss(shell_a: Shell, shell_b: Shell) -> jnp.ndarray:
-    """Contracted s|T|s shell-pair kinetic integral."""
-    alpha = shell_a.exponents[:, None]
-    beta = shell_b.exponents[None, :]
-    ca = shell_a.coefficients[:, None]
-    cb = shell_b.coefficients[None, :]
-    prim = kinetic_primitive_ss(alpha, shell_a.center, beta, shell_b.center)
-    return jnp.sum(ca * cb * prim)
+    block = contracted_kinetic_block(shell_a, shell_b)
+    return jnp.asarray(block[0, 0])
 
 
 def compute_kinetic_matrix(basis: BasisSet) -> jnp.ndarray:
-    """Build the full kinetic matrix T (n_basis x n_basis) for an s-only basis."""
-    _assert_all_s(basis.shells)
+    spherical = bool(basis.spherical)
+    shells = basis.shells
     n = basis.n_basis
-    rows: List[list] = [[None] * n for _ in range(n)]
-    for i, sa in enumerate(basis.shells):
-        for j, sb in enumerate(basis.shells):
+    T = np.zeros((n, n), dtype=np.float64)
+    offsets = shell_offsets(shells, spherical)
+    for i, sa in enumerate(shells):
+        ia0, ia1 = offsets[i], offsets[i + 1]
+        for j, sb in enumerate(shells):
+            jb0, jb1 = offsets[j], offsets[j + 1]
             if j < i:
-                rows[i][j] = rows[j][i]
+                T[ia0:ia1, jb0:jb1] = T[jb0:jb1, ia0:ia1].T
                 continue
-            rows[i][j] = kinetic_shell_pair_ss(sa, sb)
-    return jnp.asarray(np.array([[float(x) for x in row] for row in rows]))
+            block = contracted_kinetic_block(sa, sb)
+            if spherical:
+                block = _shell_block_spherical(block, sa, sb)
+            T[ia0:ia1, jb0:jb1] = block
+    return jnp.asarray(T)

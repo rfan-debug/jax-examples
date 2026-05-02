@@ -216,8 +216,8 @@ def test_nuclear_repulsion_rejects_coincident_atoms():
         nuclear_repulsion_energy(mol)
 
 
-def test_compute_integrals_rejects_non_s_shell():
-    # 6-31G* puts d-shells on oxygen — must raise until Step 4.
+def test_compute_integrals_supports_d_shell():
+    # 6-31G* puts d-shells on oxygen — Step 4 handles l up to 2.
     water = make_molecule(
         elements=("O", "H", "H"),
         coords=jnp.array(
@@ -230,8 +230,11 @@ def test_compute_integrals_rejects_non_s_shell():
         atomic_numbers=jnp.array([8, 1, 1], dtype=jnp.int32),
     )
     basis = jax_qc.build_basis_set(water, "6-31G*")
-    with pytest.raises(NotImplementedError, match="s-type"):
-        jax_qc.compute_integrals(water, basis)
+    ints = jax_qc.compute_integrals(water, basis)
+    assert ints.S.shape == (basis.n_basis, basis.n_basis)
+    np.testing.assert_allclose(
+        np.diag(np.asarray(ints.S)), np.ones(basis.n_basis), atol=1e-10
+    )
 
 
 def test_compute_integrals_populates_stage_timer():

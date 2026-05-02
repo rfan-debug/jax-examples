@@ -15,7 +15,8 @@ python examples/03_water_basis_sets.py
 python examples/04_xyz_roundtrip.py
 python examples/05_profiling.py
 python examples/06_integrals_h2.py   # Step 2: S/T/V/ERI/E_nuc
-python examples/07_rhf_scf.py        # Step 3: RHF total energies
+python examples/07_rhf_scf.py        # Step 3: RHF total energies (Tier 1)
+python examples/08_rhf_tier2.py      # Step 4: RHF on Tier 2 (p- and d-shells)
 ```
 
 Every script is self-contained and uses only functions exported from

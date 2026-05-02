@@ -2,23 +2,18 @@
 
 V_{mu nu} = - sum_C Z_C * <chi_mu | 1 / |r - R_C| | chi_nu>
 
-For a primitive s|V|s integral to a nucleus at C with charge Z:
+For arbitrary angular momentum we use the McMurchie-Davidson primitive
+in :mod:`jax_qc.integrals.obara_saika`. The nuclear-attraction primitive
+already loops over nuclei internally and contracts with shell coefficients
+above; here we just tile the resulting Cartesian shell blocks into the
+matrix and apply the optional spherical projection.
 
-    V_AB^C = -2 pi / p * Z * exp(-mu |A-B|^2) * F_0(p * |P-C|^2)
-
-where p = alpha + beta, mu = alpha beta / p, and
-P = (alpha A + beta B) / p is the Gaussian-product center.
-
-Also provides the nuclear repulsion energy:
-
-    E_nuc = sum_{A < B} Z_A Z_B / R_AB
-
-FP: Applicative over (mu, nu) and Foldable over the nucleus index.
+Also provides ``nuclear_repulsion_energy`` (Foldable over atom pairs).
 """
 
 from __future__ import annotations
 
-from typing import List, Sequence
+from typing import List
 
 import jax.numpy as jnp
 import numpy as np
@@ -29,11 +24,18 @@ from jax_qc.integrals.gaussian_product import (
     distance_squared,
     gaussian_product_center,
 )
-from jax_qc.integrals.overlap import _assert_all_s
+from jax_qc.integrals.obara_saika import (
+    contracted_nuclear_block,
+    n_cartesian,
+)
+from jax_qc.integrals.overlap import (
+    _shell_block_spherical,
+    shell_offsets,
+)
 
 
 def nuclear_primitive_ss(alpha, A, beta, B, C, Z):
-    """Primitive attraction of shell a-b to a single nucleus at C with charge Z."""
+    """Analytic primitive s|V|s helper (kept for legacy / tests)."""
     p = alpha + beta
     mu = alpha * beta / p
     AB2 = distance_squared(A, B)
@@ -48,54 +50,39 @@ def nuclear_shell_pair_ss(
     nuc_coords: jnp.ndarray,
     nuc_charges: jnp.ndarray,
 ) -> jnp.ndarray:
-    """Contracted s|V|s integral, summed over all nuclei.
-
-    Vectorized over primitive pairs and nuclei simultaneously.
-    """
-    alpha = shell_a.exponents[:, None, None]  # (Na, 1, 1)
-    beta = shell_b.exponents[None, :, None]  # (1, Nb, 1)
-    ca = shell_a.coefficients[:, None, None]
-    cb = shell_b.coefficients[None, :, None]
-    # Broadcast nuclei on the last axis.
-    C = nuc_coords[None, None, :, :]  # (1, 1, Natom, 3)
-    Z = nuc_charges[None, None, :].astype(jnp.float64)
-
-    p = alpha + beta
-    mu = alpha * beta / p
-    AB2 = distance_squared(shell_a.center, shell_b.center)
-
-    # Gaussian product center per primitive pair, shape (Na, Nb, 1, 3).
-    P_vec = (
-        alpha[..., None] * shell_a.center[None, None, None, :]
-        + beta[..., None] * shell_b.center[None, None, None, :]
-    ) / p[..., None]
-    PC2 = jnp.sum((P_vec - C) ** 2, axis=-1)  # (Na, Nb, Natom)
-
-    prim = -(2.0 * jnp.pi / p) * Z * jnp.exp(-mu * AB2) * boys_f0(p * PC2)
-    return jnp.sum(ca * cb * prim)
+    block = contracted_nuclear_block(
+        shell_a,
+        shell_b,
+        np.asarray(nuc_coords, dtype=np.float64),
+        np.asarray(nuc_charges, dtype=np.float64),
+    )
+    return jnp.asarray(block[0, 0])
 
 
 def compute_nuclear_matrix(basis: BasisSet, mol: Molecule) -> jnp.ndarray:
-    """Build the nuclear-attraction matrix V (n_basis x n_basis)."""
-    _assert_all_s(basis.shells)
-    nuc_coords = jnp.asarray(mol.coords, dtype=jnp.float64)
-    nuc_charges = jnp.asarray(mol.atomic_numbers, dtype=jnp.float64)
+    spherical = bool(basis.spherical)
+    shells = basis.shells
     n = basis.n_basis
-    rows: List[list] = [[None] * n for _ in range(n)]
-    for i, sa in enumerate(basis.shells):
-        for j, sb in enumerate(basis.shells):
+    V = np.zeros((n, n), dtype=np.float64)
+    offsets = shell_offsets(shells, spherical)
+    nuc_coords = np.asarray(mol.coords, dtype=np.float64)
+    nuc_charges = np.asarray(mol.atomic_numbers, dtype=np.float64)
+    for i, sa in enumerate(shells):
+        ia0, ia1 = offsets[i], offsets[i + 1]
+        for j, sb in enumerate(shells):
+            jb0, jb1 = offsets[j], offsets[j + 1]
             if j < i:
-                rows[i][j] = rows[j][i]
+                V[ia0:ia1, jb0:jb1] = V[jb0:jb1, ia0:ia1].T
                 continue
-            rows[i][j] = nuclear_shell_pair_ss(sa, sb, nuc_coords, nuc_charges)
-    return jnp.asarray(np.array([[float(x) for x in row] for row in rows]))
+            block = contracted_nuclear_block(sa, sb, nuc_coords, nuc_charges)
+            if spherical:
+                block = _shell_block_spherical(block, sa, sb)
+            V[ia0:ia1, jb0:jb1] = block
+    return jnp.asarray(V)
 
 
 def nuclear_repulsion_energy(mol: Molecule) -> float:
-    """E_nuc = sum_{A<B} Z_A Z_B / R_AB.
-
-    FP: Foldable — single reduction over atom pairs.
-    """
+    """E_nuc = sum_{A<B} Z_A Z_B / R_AB.  FP: Foldable."""
     coords = np.asarray(mol.coords, dtype=np.float64)
     Z = np.asarray(mol.atomic_numbers, dtype=np.float64)
     n = len(Z)

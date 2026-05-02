@@ -65,24 +65,45 @@ def boys_f0(t):
     return jnp.where(t < _SMALL_T, _f0_series(t), _f0_erf(t))
 
 
+def _fn_series(n: int, t):
+    """Taylor series for F_n(t) around t = 0.
+
+    F_n(t) = sum_{k>=0} (-t)^k / (k! * (2 n + 2 k + 1))
+    Keeping terms through t^7 gives relative error < 1e-14 for t <= 1e-2.
+    """
+    result = 1.0 / (2 * n + 1)
+    sign = -1.0
+    t_pow = t
+    fact = 1.0
+    for k in range(1, 8):
+        fact *= k
+        result = result + sign * t_pow / (fact * (2 * n + 2 * k + 1))
+        sign = -sign
+        t_pow = t_pow * t
+    return result
+
+
 def boys_fn(n: int, t):
     """F_n(t) for a non-negative integer n.
 
-    Uses F_0 above and the upward recurrence. Numerically adequate for
-    n up to ~8 (enough for (dd|dd) integrals). Not used in Step 2 but
-    provided here so later steps do not need a new module.
+    * For |t| < _SMALL_T we evaluate the direct Taylor series for F_n
+      (avoids cancellation in the upward recurrence).
+    * For larger t we use the upward recurrence from F_0. That recurrence
+      is numerically well-conditioned when t is not tiny and is adequate
+      for n up to ~8 (enough for (dd|dd) integrals).
     """
     if n < 0:
         raise ValueError("boys_fn requires n >= 0")
     t = jnp.asarray(t)
-    fn = boys_f0(t)
     if n == 0:
-        return fn
+        return boys_f0(t)
+
+    # Upward recurrence from F_0 for the "large t" branch.
     safe_t = jnp.where(t > 0, t, 1.0)
     exp_neg_t = jnp.exp(-t)
-    # At t = 0, F_n(0) = 1 / (2n + 1).
+    fn = boys_f0(t)
     for k in range(n):
         next_fn = ((2 * k + 1) * fn - exp_neg_t) / (2.0 * safe_t)
         next_at_zero = 1.0 / (2.0 * (k + 1) + 1.0)
         fn = jnp.where(t > 0, next_fn, next_at_zero)
-    return fn
+    return jnp.where(t < _SMALL_T, _fn_series(n, t), fn)
