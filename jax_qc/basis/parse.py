@@ -94,8 +94,10 @@ def bse_dict_to_shells(bse_data: dict, mol: Molecule) -> List[Shell]:
 
     For each atom in ``mol`` (in order), look up its element in
     ``bse_data``, parse every electron shell, and attach the atom's
-    coordinate. The resulting ordering is atom-major: all shells for atom 0
-    come before atom 1, etc.
+    coordinate. Within each atom we sort shells by ``(angular_momentum
+    ascending, max_exponent descending)`` to match the convention used by
+    PySCF / libcint (innermost-first within each l block); BSE itself
+    leaves them in input-file order, which is usually the opposite.
     """
     shells: List[Shell] = []
     elements_data = bse_data.get("elements", {})
@@ -110,8 +112,18 @@ def bse_dict_to_shells(bse_data: dict, mol: Molecule) -> List[Shell]:
                 f"(atom index {atom_idx})."
             )
         atom_center = coords[atom_idx]
+        atom_shells: List[Shell] = []
         for shell_dict in elements_data[key].get("electron_shells", []):
-            shells.extend(parse_electron_shell(shell_dict, atom_center, atom_idx))
+            atom_shells.extend(
+                parse_electron_shell(shell_dict, atom_center, atom_idx)
+            )
+        atom_shells.sort(
+            key=lambda sh: (
+                int(sh.angular_momentum),
+                -float(np.max(np.asarray(sh.exponents))),
+            )
+        )
+        shells.extend(atom_shells)
     return shells
 
 
