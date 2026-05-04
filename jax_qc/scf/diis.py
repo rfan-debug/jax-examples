@@ -128,3 +128,72 @@ def diis_extrapolate(
         return F, history, e
     F_ext = jnp.einsum("i,imn->mn", jnp.asarray(coeffs), focks)
     return F_ext, history, e
+
+
+# ---------------------------------------------------------------------------
+#  Combined UHF DIIS
+# ---------------------------------------------------------------------------
+
+
+def diis_history_init_uhf(n_basis: int, max_size: int) -> DIISHistory:
+    """Create an empty DIIS history for combined UHF (alpha+beta stacked).
+
+    The "Fock" dimension is (2*n_basis, n_basis) so we can stack F_a on
+    top of F_b and treat them as a single block for DIIS.
+    """
+    shape = (max_size, 2 * n_basis, n_basis)
+    return DIISHistory(
+        fock_list=jnp.zeros(shape),
+        error_list=jnp.zeros(shape),
+        size=0,
+        max_size=max_size,
+    )
+
+
+def diis_extrapolate_uhf(
+    history: DIISHistory,
+    F_a: jnp.ndarray,
+    F_b: jnp.ndarray,
+    D_a: jnp.ndarray,
+    D_b: jnp.ndarray,
+    S: jnp.ndarray,
+    X: jnp.ndarray,
+) -> Tuple[jnp.ndarray, jnp.ndarray, DIISHistory, jnp.ndarray, jnp.ndarray]:
+    """Combined DIIS for UHF: treat alpha+beta as a single system.
+
+    Stacks F_alpha and F_beta into a single (2n, n) "super-Fock" and
+    similarly for the error vectors. A single DIIS solve determines
+    the extrapolation coefficients, guaranteeing that both spin channels
+    are extrapolated consistently.
+
+    Returns:
+        F_a_ext:  extrapolated alpha Fock matrix.
+        F_b_ext:  extrapolated beta Fock matrix.
+        history:  updated combined DIIS history.
+        error_a:  alpha commutator error (for convergence diagnostics).
+        error_b:  beta commutator error (for convergence diagnostics).
+    """
+    n = F_a.shape[0]
+    e_a = diis_error(F_a, D_a, S, X)
+    e_b = diis_error(F_b, D_b, S, X)
+
+    # Stack into combined representation
+    F_combined = jnp.concatenate([F_a, F_b], axis=0)  # (2n, n)
+    e_combined = jnp.concatenate([e_a, e_b], axis=0)  # (2n, n)
+
+    history = _push(history, F_combined, e_combined)
+
+    if history.size < 2:
+        return F_a, F_b, history, e_a, e_b
+
+    errors = history.error_list[: history.size]
+    focks = history.fock_list[: history.size]
+    coeffs = _solve_diis(errors)
+
+    if coeffs is None:
+        return F_a, F_b, history, e_a, e_b
+
+    F_ext = jnp.einsum("i,imn->mn", jnp.asarray(coeffs), focks)
+    F_a_ext = F_ext[:n, :]
+    F_b_ext = F_ext[n:, :]
+    return F_a_ext, F_b_ext, history, e_a, e_b
