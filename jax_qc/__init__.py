@@ -1,7 +1,7 @@
 """JAX-QC: A functional quantum chemistry framework in JAX.
 
-Step 1 provides the foundation: core data types, basis set integration via
-Basis Set Exchange, XYZ file IO, and a hierarchical profiling timer.
+Steps 1-4 provide RHF on closed-shell molecules with general angular
+momentum.  Step 5 adds UHF for open-shell systems.
 """
 
 import jax
@@ -25,6 +25,7 @@ from jax_qc.profiling.timer import StageTimer
 from jax_qc.profiling.report import format_report
 from jax_qc.scf.interface import run_scf
 from jax_qc.scf.rhf import run_rhf
+from jax_qc.scf.uhf import run_uhf
 
 __all__ = [
     "Primitive",
@@ -43,6 +44,7 @@ __all__ = [
     "format_report",
     "run_scf",
     "run_rhf",
+    "run_uhf",
 ]
 
 __version__ = "0.1.0"
