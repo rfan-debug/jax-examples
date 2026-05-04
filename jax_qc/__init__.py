@@ -2,7 +2,8 @@
 
 Steps 1-5 provide RHF and UHF SCF on closed- and open-shell molecules.
 Step 6 adds post-SCF properties (Mulliken, dipole, orbital analysis)
-and a high-level convenience API (``energy()``, ``run()``, ``run_xyz()``).
+and a high-level convenience API.
+Step 7 adds nuclear gradients (analytic and numerical).
 """
 
 import jax
@@ -39,6 +40,11 @@ from jax_qc.properties.orbital_analysis import orbital_analysis, OrbitalInfo
 # --- High-level convenience API ---
 from jax_qc.io.input_parser import build_molecule, energy, run, run_xyz
 
+# --- Gradients ---
+from jax_qc.grad.interface import compute_gradient
+from jax_qc.grad.numerical_grad import numerical_gradient
+from jax_qc.grad.rhf_grad import rhf_gradient
+
 __all__ = [
     # Types
     "Primitive",
@@ -71,6 +77,10 @@ __all__ = [
     "energy",
     "run",
     "run_xyz",
+    # Gradients
+    "compute_gradient",
+    "numerical_gradient",
+    "rhf_gradient",
 ]
 
 __version__ = "0.1.0"
