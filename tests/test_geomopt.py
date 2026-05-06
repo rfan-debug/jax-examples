@@ -474,3 +474,270 @@ def test_h2o_energy_decreases_monotonically():
         assert energies[i] <= energies[i - 1] + 1e-8, (
             f"Energy increased at step {i}: {energies[i - 1]:.10f} -> {energies[i]:.10f}"
         )
+
+
+# =========================================================================
+#  Tier C: Larger basis sets — 6-31G (tests basis-set dependence)
+# =========================================================================
+
+
+def _h2_for_631g():
+    """H2 at R=1.6 Bohr for 6-31G optimization (eq ~1.38 Bohr)."""
+    return make_molecule(
+        elements=("H", "H"),
+        coords=jnp.array([[0.0, 0.0, 0.0], [0.0, 0.0, 1.6]]),
+        atomic_numbers=jnp.array([1, 1], dtype=jnp.int32),
+    )
+
+
+def _heh_for_631g():
+    """HeH+ at R=1.8 Bohr for 6-31G optimization (eq ~1.45 Bohr)."""
+    return make_molecule(
+        elements=("He", "H"),
+        coords=jnp.array([[0.0, 0.0, 0.0], [0.0, 0.0, 1.8]]),
+        atomic_numbers=jnp.array([2, 1], dtype=jnp.int32),
+        charge=+1,
+    )
+
+
+@pytest.mark.slow
+def test_h2_631g_optimization():
+    """H2/6-31G: larger basis gives different equilibrium (~1.38 Bohr)."""
+    mol = _h2_for_631g()
+    opt = optimize_geometry(
+        mol, basis_name="6-31g", max_steps=30, grad_tol=1e-4, verbose=0
+    )
+    assert opt.converged, f"H2/6-31G did not converge in {opt.n_steps} steps"
+    coords = np.asarray(opt.molecule.coords)
+    r_eq = float(np.linalg.norm(coords[1] - coords[0]))
+    # 6-31G equilibrium is slightly different from STO-3G
+    assert r_eq == pytest.approx(1.38, abs=0.05), f"H2/6-31G R_eq={r_eq:.4f}"
+    e_pyscf = _pyscf_energy_at_coords(opt.molecule, "6-31g")
+    assert opt.energy == pytest.approx(e_pyscf, abs=1e-5)
+
+
+@pytest.mark.slow
+def test_heh_631g_optimization():
+    """HeH+/6-31G: equilibrium ~1.45 Bohr, matches PySCF."""
+    mol = _heh_for_631g()
+    opt = optimize_geometry(
+        mol, basis_name="6-31g", max_steps=30, grad_tol=1e-4, verbose=0
+    )
+    assert opt.converged
+    coords = np.asarray(opt.molecule.coords)
+    r_eq = float(np.linalg.norm(coords[1] - coords[0]))
+    assert r_eq == pytest.approx(1.45, abs=0.1), f"HeH+/6-31G R_eq={r_eq:.4f}"
+    e_pyscf = _pyscf_energy_at_coords(opt.molecule, "6-31g")
+    assert opt.energy == pytest.approx(e_pyscf, abs=1e-5)
+
+
+# =========================================================================
+#  Tier D: 2nd-row atoms — LiH (lithium hydride)
+# =========================================================================
+
+
+def _lih_stretched():
+    """LiH at R=3.5 Bohr (stretched from eq ~2.9 for STO-3G)."""
+    return make_molecule(
+        elements=("Li", "H"),
+        coords=jnp.array([[0.0, 0.0, 0.0], [0.0, 0.0, 3.5]]),
+        atomic_numbers=jnp.array([3, 1], dtype=jnp.int32),
+    )
+
+
+def _lih_compressed():
+    """LiH at R=2.4 Bohr (compressed from equilibrium)."""
+    return make_molecule(
+        elements=("Li", "H"),
+        coords=jnp.array([[0.0, 0.0, 0.0], [0.0, 0.0, 2.4]]),
+        atomic_numbers=jnp.array([3, 1], dtype=jnp.int32),
+    )
+
+
+@pytest.mark.slow
+def test_lih_sto3g_converges():
+    """LiH/STO-3G from stretched geometry: should converge to R~2.9 Bohr."""
+    mol = _lih_stretched()
+    opt = optimize_geometry(
+        mol, basis_name="sto-3g", max_steps=30, grad_tol=1e-4, verbose=0
+    )
+    assert opt.converged, f"LiH/STO-3G did not converge in {opt.n_steps} steps"
+    coords = np.asarray(opt.molecule.coords)
+    r_eq = float(np.linalg.norm(coords[1] - coords[0]))
+    # PySCF LiH/STO-3G equilibrium: ~2.9 Bohr
+    assert r_eq == pytest.approx(2.9, abs=0.1), f"LiH R_eq={r_eq:.4f}, expected ~2.9"
+
+
+@pytest.mark.slow
+def test_lih_sto3g_energy_matches_pyscf():
+    """LiH/STO-3G: energy at optimized geometry matches PySCF."""
+    mol = _lih_stretched()
+    opt = optimize_geometry(
+        mol, basis_name="sto-3g", max_steps=30, grad_tol=1e-5, verbose=0
+    )
+    e_pyscf = _pyscf_energy_at_coords(opt.molecule, "sto-3g")
+    assert opt.energy == pytest.approx(e_pyscf, abs=1e-5)
+
+
+@pytest.mark.slow
+def test_lih_bidirectional_same_minimum():
+    """LiH: stretched and compressed starts converge to same energy."""
+    opt_s = optimize_geometry(
+        _lih_stretched(),
+        basis_name="sto-3g",
+        max_steps=30,
+        grad_tol=1e-4,
+        verbose=0,
+    )
+    opt_c = optimize_geometry(
+        _lih_compressed(),
+        basis_name="sto-3g",
+        max_steps=30,
+        grad_tol=1e-4,
+        verbose=0,
+    )
+    assert opt_s.converged and opt_c.converged
+    assert opt_s.energy == pytest.approx(opt_c.energy, abs=1e-5)
+
+
+@pytest.mark.slow
+def test_lih_631g_optimization():
+    """LiH/6-31G: larger basis shifts equilibrium to R~3.1 Bohr."""
+    mol = make_molecule(
+        elements=("Li", "H"),
+        coords=jnp.array([[0.0, 0.0, 0.0], [0.0, 0.0, 3.5]]),
+        atomic_numbers=jnp.array([3, 1], dtype=jnp.int32),
+    )
+    opt = optimize_geometry(
+        mol, basis_name="6-31g", max_steps=30, grad_tol=1e-4, verbose=0
+    )
+    assert opt.converged
+    coords = np.asarray(opt.molecule.coords)
+    r_eq = float(np.linalg.norm(coords[1] - coords[0]))
+    # PySCF LiH/6-31G equilibrium: ~3.1 Bohr
+    assert r_eq == pytest.approx(3.1, abs=0.15), (
+        f"LiH/6-31G R_eq={r_eq:.4f}, expected ~3.1"
+    )
+    e_pyscf = _pyscf_energy_at_coords(opt.molecule, "6-31g")
+    assert opt.energy == pytest.approx(e_pyscf, abs=1e-5)
+
+
+# =========================================================================
+#  Tier D: NH3 — 4-atom pyramidal with p-shells
+# =========================================================================
+
+
+def _nh3_distorted():
+    """NH3 starting from a distorted pyramidal geometry.
+
+    Equilibrium: R_NH ~ 2.0 Bohr, HNH angle ~ 104-108 deg (STO-3G).
+    Start from R_NH = 2.3 Bohr with slightly compressed angles.
+    """
+    r = 2.3
+    # Approximate C3v geometry with 3 equivalent N-H bonds
+    theta = np.deg2rad(100.0 / 2.0)  # half the HNH angle (distorted)
+    s = r * np.sin(theta)
+    c = r * np.cos(theta)
+    return make_molecule(
+        elements=("N", "H", "H", "H"),
+        coords=jnp.array(
+            [
+                [0.0, 0.0, 0.0],
+                [s, 0.0, -c],
+                [-s * 0.5, s * np.sqrt(3.0) / 2.0, -c],
+                [-s * 0.5, -s * np.sqrt(3.0) / 2.0, -c],
+            ]
+        ),
+        atomic_numbers=jnp.array([7, 1, 1, 1], dtype=jnp.int32),
+    )
+
+
+@pytest.mark.slow
+def test_nh3_optimization_converges():
+    """NH3/STO-3G from distorted geometry: should converge."""
+    mol = _nh3_distorted()
+    opt = optimize_geometry(
+        mol, basis_name="sto-3g", max_steps=50, grad_tol=1e-4, verbose=0
+    )
+    assert opt.converged, f"NH3 did not converge in {opt.n_steps} steps"
+
+
+@pytest.mark.slow
+def test_nh3_equilibrium_geometry():
+    """NH3/STO-3G: R_NH ~ 2.0 Bohr, all NH bonds equivalent."""
+    mol = _nh3_distorted()
+    opt = optimize_geometry(
+        mol, basis_name="sto-3g", max_steps=50, grad_tol=1e-4, verbose=0
+    )
+    assert opt.converged
+    coords = np.asarray(opt.molecule.coords)
+    # N is at index 0, three H at 1,2,3
+    r_nh = [float(np.linalg.norm(coords[i] - coords[0])) for i in range(1, 4)]
+    r_mean = sum(r_nh) / 3.0
+    # All NH bonds should be equivalent
+    for i, r in enumerate(r_nh):
+        assert r == pytest.approx(r_mean, abs=0.05), (
+            f"NH bond {i + 1}: {r:.4f} != mean {r_mean:.4f}"
+        )
+    # Equilibrium R_NH ~ 2.0 Bohr for STO-3G
+    assert r_mean == pytest.approx(2.0, abs=0.15), (
+        f"NH3 R_NH = {r_mean:.4f}, expected ~2.0"
+    )
+
+
+@pytest.mark.slow
+def test_nh3_energy_matches_pyscf():
+    """NH3: energy at optimized geometry matches PySCF single-point."""
+    mol = _nh3_distorted()
+    opt = optimize_geometry(
+        mol, basis_name="sto-3g", max_steps=50, grad_tol=1e-4, verbose=0
+    )
+    e_pyscf = _pyscf_energy_at_coords(opt.molecule, "sto-3g")
+    assert opt.energy == pytest.approx(e_pyscf, abs=1e-5)
+
+
+# =========================================================================
+#  Cross-basis consistency: same molecule, different basis sets
+# =========================================================================
+
+
+@pytest.mark.slow
+def test_lih_basis_set_dependence():
+    """LiH equilibrium R should increase with larger basis (STO-3G < 6-31G).
+
+    This validates that the optimizer correctly captures the basis-set
+    dependence of the potential energy surface.
+    """
+    opt_sto = optimize_geometry(
+        _lih_stretched(),
+        basis_name="sto-3g",
+        max_steps=30,
+        grad_tol=1e-4,
+        verbose=0,
+    )
+    opt_631 = optimize_geometry(
+        _lih_stretched(),
+        basis_name="6-31g",
+        max_steps=30,
+        grad_tol=1e-4,
+        verbose=0,
+    )
+    assert opt_sto.converged and opt_631.converged
+    r_sto = float(
+        np.linalg.norm(
+            np.asarray(opt_sto.molecule.coords[1])
+            - np.asarray(opt_sto.molecule.coords[0])
+        )
+    )
+    r_631 = float(
+        np.linalg.norm(
+            np.asarray(opt_631.molecule.coords[1])
+            - np.asarray(opt_631.molecule.coords[0])
+        )
+    )
+    # 6-31G equilibrium is longer than STO-3G for LiH
+    assert r_631 > r_sto, f"Expected R(6-31G)={r_631:.4f} > R(STO-3G)={r_sto:.4f}"
+    # 6-31G energy should be lower (better basis)
+    assert opt_631.energy < opt_sto.energy, (
+        f"Expected E(6-31G)={opt_631.energy:.8f} < E(STO-3G)={opt_sto.energy:.8f}"
+    )
