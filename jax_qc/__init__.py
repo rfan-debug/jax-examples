@@ -4,6 +4,7 @@ Steps 1-5 provide RHF and UHF SCF on closed- and open-shell molecules.
 Step 6 adds post-SCF properties (Mulliken, dipole, orbital analysis)
 and a high-level convenience API.
 Step 7 adds nuclear gradients (analytic and numerical).
+Step 8 adds geometry optimization (BFGS) and numerical Hessian.
 """
 
 import jax
@@ -45,6 +46,11 @@ from jax_qc.grad.interface import compute_gradient
 from jax_qc.grad.numerical_grad import numerical_gradient
 from jax_qc.grad.rhf_grad import rhf_gradient
 
+# --- Geometry optimization ---
+from jax_qc.geomopt.interface import optimize_geometry
+from jax_qc.geomopt.optimizer import OptResult
+from jax_qc.geomopt.hessian import numerical_hessian
+
 __all__ = [
     # Types
     "Primitive",
@@ -81,6 +87,10 @@ __all__ = [
     "compute_gradient",
     "numerical_gradient",
     "rhf_gradient",
+    # Geometry optimization
+    "optimize_geometry",
+    "OptResult",
+    "numerical_hessian",
 ]
 
 __version__ = "0.1.0"
