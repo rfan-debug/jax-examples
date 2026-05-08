@@ -39,11 +39,11 @@ This document develops three complementary approaches to go beyond BO,
 each representing a different "prior" on the structure of the molecular
 wavefunction:
 
-| Approach | Prior on Psi(r,R) | Strengths | Limitations |
+| Approach | Prior on $\Psi(\mathbf{r},\mathbf{R})$ | Strengths | Limitations |
 |----------|-------------------|-----------|-------------|
-| **Exact Factorization** | Psi = phi_R(r) * chi(R) (exact) | Rigorous, single-surface picture | TDSE coupling, numerical cost |
-| **Explicitly Correlated Gaussians** | Psi = Sum_k c_k G_k(all particles) | Highest accuracy, no BO at all | Few-body only (<=5 particles) |
-| **Path Integral MD** | rho ~ integral Dq exp(-S[q]/hbar) | Nuclear quantum effects, scales | Classical nuclei + quantum corrections |
+| **Exact Factorization** | $\Psi = \phi_{\mathbf{R}}(\mathbf{r}) \cdot \chi(\mathbf{R})$ (exact) | Rigorous, single-surface picture | TDSE coupling, numerical cost |
+| **Explicitly Correlated Gaussians** | $\Psi = \sum_k c_k G_k(\text{all particles})$ | Highest accuracy, no BO at all | Few-body only ($\le 5$ particles) |
+| **Path Integral MD** | $\rho \propto \int \mathcal{D}q\, e^{-S[q]/\hbar}$ | Nuclear quantum effects, scales | Classical nuclei + quantum corrections |
 
 ---
 
@@ -51,62 +51,50 @@ wavefunction:
 
 ### 2.1 The Non-Relativistic Molecular Hamiltonian
 
-For a system of N_e electrons (mass m_e = 1 in a.u.) and N_n nuclei
-(masses M_A, charges Z_A), the full Hamiltonian in atomic units is:
+For a system of $N_e$ electrons (mass $m_e = 1$ in a.u.) and $N_n$ nuclei
+(masses $M_A$, charges $Z_A$), the full Hamiltonian in atomic units is:
 
-```
-H = T_e + T_n + V_ee + V_nn + V_en
-```
+$$\hat{H} = \hat{T}_e + \hat{T}_n + \hat{V}_{ee} + \hat{V}_{nn} + \hat{V}_{en}$$
 
 where:
 
-```
-T_e = -(1/2) Sum_i nabla_i^2            (electronic kinetic energy)
+$$\hat{T}_e = -\frac{1}{2} \sum_{i=1}^{N_e} \nabla_i^2 \qquad \text{(electronic kinetic energy)}$$
 
-T_n = -Sum_A (1 / 2*M_A) nabla_A^2      (nuclear kinetic energy)
+$$\hat{T}_n = -\sum_{A=1}^{N_n} \frac{1}{2M_A} \nabla_A^2 \qquad \text{(nuclear kinetic energy)}$$
 
-V_ee = Sum_{i<j} 1 / |r_i - r_j|        (electron-electron repulsion)
+$$\hat{V}_{ee} = \sum_{i<j} \frac{1}{|\mathbf{r}_i - \mathbf{r}_j|} \qquad \text{(electron-electron repulsion)}$$
 
-V_nn = Sum_{A<B} Z_A*Z_B / |R_A - R_B|  (nuclear-nuclear repulsion)
+$$\hat{V}_{nn} = \sum_{A<B} \frac{Z_A Z_B}{|\mathbf{R}_A - \mathbf{R}_B|} \qquad \text{(nuclear-nuclear repulsion)}$$
 
-V_en = -Sum_{i,A} Z_A / |r_i - R_A|     (electron-nuclear attraction)
-```
+$$\hat{V}_{en} = -\sum_{i,A} \frac{Z_A}{|\mathbf{r}_i - \mathbf{R}_A|} \qquad \text{(electron-nuclear attraction)}$$
 
 The full time-independent Schrodinger equation is:
 
-```
-H Psi(r, R) = E Psi(r, R)
-```
+$$\hat{H}\,\Psi(\mathbf{r}, \mathbf{R}) = E\,\Psi(\mathbf{r}, \mathbf{R})$$
 
-where r = (r_1, ..., r_{N_e}) and R = (R_1, ..., R_{N_n}) denote the
+where $\mathbf{r} = (\mathbf{r}_1, \ldots, \mathbf{r}_{N_e})$ and $\mathbf{R} = (\mathbf{R}_1, \ldots, \mathbf{R}_{N_n})$ denote the
 collective electronic and nuclear coordinates, respectively.
 
 ### 2.2 Coordinate Systems
 
 **Laboratory frame**: The Hamiltonian above is translationally invariant.
-Separating the center-of-mass motion R_CM:
+Separating the center-of-mass motion $\mathbf{R}_{CM}$:
 
-```
-R_CM = (Sum_A M_A R_A + Sum_i m_e r_i) / (Sum_A M_A + N_e m_e)
-```
+$$\mathbf{R}_{CM} = \frac{\sum_A M_A \mathbf{R}_A + \sum_i m_e \mathbf{r}_i}{\sum_A M_A + N_e m_e}$$
 
-yields an internal Hamiltonian H_int with 3(N_e + N_n) - 3 degrees of
+yields an internal Hamiltonian $\hat{H}_{int}$ with $3(N_e + N_n) - 3$ degrees of
 freedom and a mass-polarization term:
 
-```
-H_int = H - (1 / 2*M_tot) (Sum_i nabla_i + Sum_A nabla_A)^2
-```
+$$\hat{H}_{int} = \hat{H} - \frac{1}{2M_{tot}} \left(\sum_i \nabla_i + \sum_A \nabla_A\right)^2$$
 
 **Body-fixed frame** (Jacobi or perimetric coordinates): For few-body
 systems (ECG), one typically uses relative coordinates
-rho_k = x_k - x_{k+1} after removing the center of mass, yielding the
+$\boldsymbol{\rho}_k = \mathbf{x}_k - \mathbf{x}_{k+1}$ after removing the center of mass, yielding the
 internal Hamiltonian:
 
-```
-H_int = -(1/2) Sum_{k,l} (Lambda^{-1})_{kl} nabla_{rho_k} . nabla_{rho_l} + V({rho})
-```
+$$\hat{H}_{int} = -\frac{1}{2} \sum_{k,l} \left(\boldsymbol{\Lambda}^{-1}\right)_{kl} \nabla_{\rho_k} \cdot \nabla_{\rho_l} + V(\{\boldsymbol{\rho}\})$$
 
-where Lambda is the mass matrix whose elements depend on the particle
+where $\boldsymbol{\Lambda}$ is the mass matrix whose elements depend on the particle
 masses and the chosen Jacobi tree.
 
 ### 2.3 Symmetry Requirements
@@ -129,24 +117,17 @@ masses and the chosen Jacobi tree.
 
 The BO approximation assumes the total wavefunction factorizes as:
 
-```
-Psi(r, R) ~ psi_R(r) * chi(R)
-```
+$$\Psi(\mathbf{r}, \mathbf{R}) \approx \psi_{\mathbf{R}}(\mathbf{r}) \cdot \chi(\mathbf{R})$$
 
 where:
-- psi_R(r) is the electronic wavefunction, solved for each fixed R via
-  H_elec(R) psi_R = E_elec(R) psi_R.
-- chi(R) is the nuclear wavefunction, moving on the PES
-  E_elec(R) + V_nn(R).
+- $\psi_{\mathbf{R}}(\mathbf{r})$ is the electronic wavefunction, solved for each fixed $\mathbf{R}$ via
+  $\hat{H}_{elec}(\mathbf{R})\psi_{\mathbf{R}} = E_{elec}(\mathbf{R})\psi_{\mathbf{R}}$.
+- $\chi(\mathbf{R})$ is the nuclear wavefunction, moving on the PES
+  $E_{elec}(\mathbf{R}) + V_{nn}(\mathbf{R})$.
 
-The key assumption is that T_n acting on psi_R is negligible:
+The key assumption is that $\hat{T}_n$ acting on $\psi_{\mathbf{R}}$ is negligible:
 
-```
-nabla_A^2 [psi_R(r) chi(R)]
-= psi_R nabla_A^2 chi                           (kept)
-+ 2 (nabla_A psi_R) . (nabla_A chi)             (1st-order NACT, dropped)
-+ (nabla_A^2 psi_R) chi                         (2nd-order NACT, dropped)
-```
+$$\nabla_A^2 \left[\psi_{\mathbf{R}}(\mathbf{r})\,\chi(\mathbf{R})\right] = \underbrace{\psi_{\mathbf{R}}\,\nabla_A^2 \chi}_{\text{kept}} + \underbrace{2\,(\nabla_A \psi_{\mathbf{R}}) \cdot (\nabla_A \chi)}_{\text{1st-order NACT, dropped}} + \underbrace{(\nabla_A^2 \psi_{\mathbf{R}})\,\chi}_{\text{2nd-order NACT, dropped}}$$
 
 The last two terms are the **non-adiabatic coupling terms** (NACTs) that
 the BO approximation discards.
@@ -157,39 +138,37 @@ The BO approximation can be understood as a specific **prior** on the
 joint probability amplitude Psi(r, R):
 
 **Joint distribution view**: Define the probability density
-|Psi(r, R)|^2 = P(r, R). Any joint distribution admits the exact
+$|\Psi(\mathbf{r}, \mathbf{R})|^2 = P(\mathbf{r}, \mathbf{R})$. Any joint distribution admits the exact
 factorization:
 
-```
-P(r, R) = P(r | R) * P(R)
-```
+$$P(\mathbf{r}, \mathbf{R}) = P(\mathbf{r} \mid \mathbf{R}) \cdot P(\mathbf{R})$$
 
 The BO approximation is the **mean-field prior** that assumes:
 
-1. The conditional distribution P(r | R) is the ground-state electronic
-   density at fixed R.
-2. The marginal P(R) is determined by a nuclear Schrodinger equation on
+1. The conditional distribution $P(\mathbf{r} \mid \mathbf{R})$ is the ground-state electronic
+   density at fixed $\mathbf{R}$.
+2. The marginal $P(\mathbf{R})$ is determined by a nuclear Schrodinger equation on
    the adiabatic PES.
-3. The coupling between the two (NACTs) is zero -- i.e., knowledge of R
+3. The coupling between the two (NACTs) is zero -- i.e., knowledge of $\mathbf{R}$
    fully determines the electronic distribution without feedback.
 
 **This is a conditional independence assumption**: the nuclear dynamics
 are independent of the details of the electronic response beyond the
-energy E_elec(R).
+energy $E_{elec}(\mathbf{R})$.
 
 ### 3.3 Alternative Priors and Their Physical Content
 
-Different choices of prior on Psi(r, R) yield different approximation
+Different choices of prior on $\Psi(\mathbf{r}, \mathbf{R})$ yield different approximation
 schemes:
 
 | Prior / Factorization | Mathematical Form | Physical Content |
 |-----------------------|-------------------|------------------|
-| **BO (adiabatic)** | Psi ~ psi_R^(0) chi | Electrons instantly follow nuclei; single PES |
-| **Multi-state BO** | Psi ~ Sum_k psi_R^(k) chi_k | Multiple PES coupled by NACTs; surface hopping |
-| **Exact Factorization** | Psi = phi_R * chi (exact) | No approximation in factorization; gauge freedom |
-| **Crude BO** | Psi ~ psi_{R0} chi | Electronic wf frozen at reference geometry |
-| **No factorization (ECG)** | Psi = Sum_k c_k G_k(r, R) | Flat prior; all correlations captured by basis |
-| **Path integral** | rho ~ integral Dq exp(-S/hbar) | Sum over all paths; nuclei as quantum ring polymers |
+| **BO (adiabatic)** | $\Psi \approx \psi_{\mathbf{R}}^{(0)} \chi$ | Electrons instantly follow nuclei; single PES |
+| **Multi-state BO** | $\Psi \approx \sum_k \psi_{\mathbf{R}}^{(k)} \chi_k$ | Multiple PES coupled by NACTs; surface hopping |
+| **Exact Factorization** | $\Psi = \phi_{\mathbf{R}} \cdot \chi$ (exact) | No approximation in factorization; gauge freedom |
+| **Crude BO** | $\Psi \approx \psi_{\mathbf{R}_0} \chi$ | Electronic wf frozen at reference geometry |
+| **No factorization (ECG)** | $\Psi = \sum_k c_k G_k(\mathbf{r}, \mathbf{R})$ | Flat prior; all correlations captured by basis |
+| **Path integral** | $\rho \propto \int \mathcal{D}q\, e^{-S/\hbar}$ | Sum over all paths; nuclei as quantum ring polymers |
 
 **Key insight**: Moving from BO to non-BO is equivalent to relaxing the
 prior from a restrictive factorization (conditional independence) to a
@@ -201,41 +180,35 @@ When the BO prior is wrong (near conical intersections, for light nuclei),
 the neglected NACTs quantify the **prior misspecification**:
 
 **First-order NACT (derivative coupling)**:
-```
-d_kl^A(R) = < psi_k(R) | nabla_A | psi_l(R) >_r
-```
+
+$$\mathbf{d}_{kl}^A(\mathbf{R}) = \langle \psi_k(\mathbf{R}) | \nabla_A | \psi_l(\mathbf{R}) \rangle_{\mathbf{r}}$$
 
 **Second-order NACT (scalar coupling)**:
-```
-G_kl^A(R) = < psi_k(R) | nabla_A^2 | psi_l(R) >_r
-```
+
+$$G_{kl}^A(\mathbf{R}) = \langle \psi_k(\mathbf{R}) | \nabla_A^2 | \psi_l(\mathbf{R}) \rangle_{\mathbf{r}}$$
 
 These are precisely the terms that the BO prior sets to zero. The exact
 nuclear equation with NACTs is:
 
-```
-[ -Sum_A (1/2M_A) (nabla_A + d^A)^2 + E_elec ] chi = E chi
-```
+$$\left[-\sum_A \frac{1}{2M_A}\left(\nabla_A + \mathbf{d}^A\right)^2 + \mathbf{E}_{elec}\right] \boldsymbol{\chi} = E\,\boldsymbol{\chi}$$
 
-where d^A and E_elec are matrices in the electronic state index. The
-BO limit is the diagonal, single-state approximation: chi_k = 0 for
-k != 0.
+where $\mathbf{d}^A$ and $\mathbf{E}_{elec}$ are matrices in the electronic state index. The
+BO limit is the diagonal, single-state approximation: $\chi_k = 0$ for
+$k \neq 0$.
 
 ### 3.5 The Variational Perspective
 
 All the priors above correspond to different **variational ansatze** for
 the total wavefunction:
 
-```
-E_0 <= <Psi_trial | H | Psi_trial> / <Psi_trial | Psi_trial>
-```
+$$E_0 \leq \frac{\langle \Psi_{trial} | \hat{H} | \Psi_{trial} \rangle}{\langle \Psi_{trial} | \Psi_{trial} \rangle}$$
 
-- BO: The trial wavefunction is constrained to the product form psi_R chi.
-  The variational space is restricted, so E_BO >= E_exact.
+- BO: The trial wavefunction is constrained to the product form $\psi_{\mathbf{R}} \chi$.
+  The variational space is restricted, so $E_{BO} \geq E_{exact}$.
 - ECG: The trial wavefunction is a linear combination of correlated
   Gaussians with no factorization constraint. As the basis grows, it
-  converges to E_exact.
-- The "quality of the prior" is measured by how far E_trial is from E_exact.
+  converges to $E_{exact}$.
+- The "quality of the prior" is measured by how far $E_{trial}$ is from $E_{exact}$.
 
 ---
 
@@ -245,102 +218,84 @@ E_0 <= <Psi_trial | H | Psi_trial> / <Psi_trial | Psi_trial>
 
 The exact factorization of Abedi, Maitra, and Gross (2010) writes:
 
-```
-Psi(r, R, t) = phi_R(r, t) * chi(R, t)
-```
+$$\Psi(\mathbf{r}, \mathbf{R}, t) = \phi_{\mathbf{R}}(\mathbf{r}, t) \cdot \chi(\mathbf{R}, t)$$
 
 subject to the **partial normalization condition**:
 
-```
-integral dr |phi_R(r, t)|^2 = 1    for all R, t
-```
+$$\int d\mathbf{r}\, |\phi_{\mathbf{R}}(\mathbf{r}, t)|^2 = 1 \qquad \forall\, \mathbf{R}, t$$
 
 This is *not* an approximation -- it is an exact rewriting. The uniqueness
 is guaranteed (up to a gauge transformation) by the partial normalization.
 
 ### 4.2 Exact Equations of Motion
 
-Substituting into the TDSE i d/dt Psi = H Psi and projecting yields two
+Substituting into the TDSE $i\partial_t \Psi = \hat{H}\Psi$ and projecting yields two
 coupled equations:
 
 **Electronic equation** (conditional):
-```
-[ H_BO(R) + U_en[chi, phi_R] ] phi_R = epsilon(R, t) phi_R
-```
 
-where epsilon(R, t) is the time-dependent potential energy surface (TDPES)
-and U_en is the electron-nuclear coupling operator:
+$$\left[\hat{H}_{BO}(\mathbf{R}) + \hat{U}_{en}[\chi, \phi_{\mathbf{R}}]\right] \phi_{\mathbf{R}} = \epsilon(\mathbf{R}, t)\,\phi_{\mathbf{R}}$$
 
-```
-U_en = Sum_A (1 / 2M_A) [
-    ((-i nabla_A chi) / chi) . (-i nabla_A)
-    + ((-i nabla_A)^2 chi) / chi
-]
-```
+where $\epsilon(\mathbf{R}, t)$ is the time-dependent potential energy surface (TDPES)
+and $\hat{U}_{en}$ is the electron-nuclear coupling operator:
+
+$$\hat{U}_{en} = \sum_A \frac{1}{2M_A} \left[\frac{(-i\nabla_A \chi)}{\chi} \cdot (-i\nabla_A) + \frac{(-i\nabla_A)^2 \chi}{\chi}\right]$$
 
 **Nuclear equation** (marginal):
-```
-i d/dt chi(R, t) = [ Sum_A (-i nabla_A + A_A)^2 / (2 M_A) + epsilon(R, t) ] chi(R, t)
-```
+
+$$i\frac{\partial}{\partial t}\chi(\mathbf{R}, t) = \left[\sum_A \frac{(-i\nabla_A + \mathbf{A}_A)^2}{2M_A} + \epsilon(\mathbf{R}, t)\right] \chi(\mathbf{R}, t)$$
 
 where the **Berry connection** (vector potential) and **TDPES** (scalar
 potential) are:
 
-```
-A_A(R, t) = < phi_R | -i nabla_A | phi_R >_r
+$$\mathbf{A}_A(\mathbf{R}, t) = \langle \phi_{\mathbf{R}} | -i\nabla_A | \phi_{\mathbf{R}} \rangle_{\mathbf{r}}$$
 
-epsilon(R, t) = < phi_R | H_BO + U_en - i d/dt | phi_R >_r
-```
+$$\epsilon(\mathbf{R}, t) = \langle \phi_{\mathbf{R}} | \hat{H}_{BO} + \hat{U}_{en} - i\partial_t | \phi_{\mathbf{R}} \rangle_{\mathbf{r}}$$
 
 ### 4.3 Gauge Freedom and Gauge-Fixing
 
-The factorization has a U(1) gauge freedom:
-phi_R -> exp(i theta(R,t)) phi_R and chi -> exp(-i theta(R,t)) chi
-leave Psi invariant.
+The factorization has a $U(1)$ gauge freedom:
+$\phi_{\mathbf{R}} \to e^{i\theta(\mathbf{R},t)} \phi_{\mathbf{R}}$ and $\chi \to e^{-i\theta(\mathbf{R},t)} \chi$
+leave $\Psi$ invariant.
 
 Common gauge choices:
-- **Real gauge**: Im(chi) = 0 (useful for time-independent problems).
-- **Coulomb gauge**: nabla_A . A_A = 0.
-- **Natural gauge**: A_A = 0 (absorbs the Berry phase into phi).
+- **Real gauge**: $\text{Im}(\chi) = 0$ (useful for time-independent problems).
+- **Coulomb gauge**: $\nabla_A \cdot \mathbf{A}_A = 0$.
+- **Natural gauge**: $\mathbf{A}_A = 0$ (absorbs the Berry phase into $\phi$).
 
 ### 4.4 Time-Independent Limit
 
-For stationary states, Psi(r, R) = phi_R(r) chi(R), and the equations
+For stationary states, $\Psi(\mathbf{r}, \mathbf{R}) = \phi_{\mathbf{R}}(\mathbf{r})\,\chi(\mathbf{R})$, and the equations
 become:
 
-```
-[ H_BO(R) + U_en^{stat} ] phi_R = epsilon(R) phi_R
+$$\left[\hat{H}_{BO}(\mathbf{R}) + \hat{U}_{en}^{stat}\right] \phi_{\mathbf{R}} = \epsilon(\mathbf{R})\,\phi_{\mathbf{R}}$$
 
-[ Sum_A (-i nabla_A + A_A)^2 / (2M_A) + epsilon(R) ] chi = E chi
-```
+$$\left[\sum_A \frac{(-i\nabla_A + \mathbf{A}_A)^2}{2M_A} + \epsilon(\mathbf{R})\right] \chi = E\,\chi$$
 
-where E is the exact total energy and epsilon(R) is now the exact static
+where $E$ is the exact total energy and $\epsilon(\mathbf{R})$ is now the exact static
 PES (which includes the diagonal BO correction and the geometric phase).
 
 ### 4.5 Connection to BO
 
-In the BO limit (M_A -> infinity), U_en -> 0, A_A -> 0, and
-epsilon(R) -> E_elec(R). The exact factorization reduces to the standard
-BO picture. The corrections are O(1/M_A).
+In the BO limit ($M_A \to \infty$), $\hat{U}_{en} \to 0$, $\mathbf{A}_A \to 0$, and
+$\epsilon(\mathbf{R}) \to E_{elec}(\mathbf{R})$. The exact factorization reduces to the standard
+BO picture. The corrections are $\mathcal{O}(1/M_A)$.
 
 ### 4.6 Computational Approach
 
 Practical EF calculations require:
 
-1. **Representation of phi_R**: Linear combination of electronic basis
-   functions (e.g., adiabatic states, Slater determinants) at each R.
-2. **Representation of chi(R)**: Grid-based (DVR), Gaussian wavepacket,
+1. **Representation of $\phi_{\mathbf{R}}$**: Linear combination of electronic basis
+   functions (e.g., adiabatic states, Slater determinants) at each $\mathbf{R}$.
+2. **Representation of $\chi(\mathbf{R})$**: Grid-based (DVR), Gaussian wavepacket,
    or trajectory-based (conditional trajectory).
-3. **Self-consistent iteration**: The two equations are coupled (each
-   depends on the other's solution). Iterate to convergence.
 
-**Conditional trajectory approach** (CT-EF): Represent chi as a swarm
+
+**Conditional trajectory approach** (CT-EF): Represent $\chi$ as a swarm
 of classical trajectories guided by the quantum potential, similar to
 Bohmian mechanics:
 
-```
-dR_A^(alpha)/dt = (1/M_A) Im (nabla_A chi / chi) |_{R=R^(alpha)}
-```
+$$\dot{\mathbf{R}}_A^{(\alpha)} = \frac{1}{M_A} \text{Im}\left.\frac{\nabla_A \chi}{\chi}\right|_{\mathbf{R}=\mathbf{R}^{(\alpha)}}$$
 
 This avoids the exponential scaling of grid-based nuclear propagation.
 
@@ -354,42 +309,32 @@ ECGs bypass the BO approximation entirely by expanding the total
 wavefunction in a basis of correlated Gaussian functions that depend
 on *all* inter-particle coordinates simultaneously.
 
-For a system of n particles (after center-of-mass removal, n-1
-relative coordinates rho in R^{3(n-1)}):
+For a system of $n$ particles (after center-of-mass removal, $n-1$
+relative coordinates $\boldsymbol{\rho} \in \mathbb{R}^{3(n-1)}$):
 
-```
-Psi = Sum_{k=1}^{K} c_k A[ G_k(rho) (x) Xi_k^{spin} ]
-```
+$$\Psi = \sum_{k=1}^{K} c_k \, \hat{\mathcal{A}} \left[ G_k(\boldsymbol{\rho}) \otimes \Xi_k^{spin} \right]$$
 
-where A is the appropriate (anti)symmetrizer for identical particles
-and Xi_k^{spin} is a spin function.
+where $\hat{\mathcal{A}}$ is the appropriate (anti)symmetrizer for identical particles
+and $\Xi_k^{spin}$ is a spin function.
 
 ### 5.2 ECG Basis Functions
 
-**Spherical ECG** (s-wave, L=0):
+**Spherical ECG** (s-wave, $L=0$):
 
-```
-G_k(rho) = exp( -rho^T (A_k (x) I_3) rho )
-```
+$$G_k(\boldsymbol{\rho}) = \exp\left(-\boldsymbol{\rho}^T (\mathbf{A}_k \otimes \mathbf{I}_3)\,\boldsymbol{\rho}\right)$$
 
-where A_k is an (n-1) x (n-1) symmetric positive-definite matrix of
-nonlinear parameters and I_3 is the 3x3 identity. In component form:
+where $\mathbf{A}_k$ is an $(n-1) \times (n-1)$ symmetric positive-definite matrix of
+nonlinear parameters and $\mathbf{I}_3$ is the $3 \times 3$ identity. In component form:
 
-```
-G_k = exp( -Sum_{i,j=1}^{n-1} (A_k)_{ij} rho_i . rho_j )
-```
+$$G_k = \exp\left(-\sum_{i,j=1}^{n-1} (A_k)_{ij}\,\boldsymbol{\rho}_i \cdot \boldsymbol{\rho}_j\right)$$
 
 **ECG with shifted centers** (for non-zero angular momentum):
 
-```
-G_k(rho) = exp( -(rho - s_k)^T (A_k (x) I_3) (rho - s_k) )
-```
+$$G_k(\boldsymbol{\rho}) = \exp\left(-(\boldsymbol{\rho} - \mathbf{s}_k)^T (\mathbf{A}_k \otimes \mathbf{I}_3)\,(\boldsymbol{\rho} - \mathbf{s}_k)\right)$$
 
-**ECG with polynomial prefactors** (for L > 0):
+**ECG with polynomial prefactors** (for $L > 0$):
 
-```
-G_k(rho) = (u_k^T rho)^{l_k} exp( -rho^T (A_k (x) I_3) rho )
-```
+$$G_k(\boldsymbol{\rho}) = \left(\mathbf{u}_k^T \boldsymbol{\rho}\right)^{l_k} \exp\left(-\boldsymbol{\rho}^T (\mathbf{A}_k \otimes \mathbf{I}_3)\,\boldsymbol{\rho}\right)$$
 
 ### 5.3 Matrix Elements
 
@@ -397,55 +342,41 @@ The power of ECGs is that all matrix elements are analytically computable.
 
 **Overlap**:
 
-```
-S_{kl} = < G_k | G_l > = ( pi^{n-1} / |A_k + A_l| )^{3/2}
-```
+$$S_{kl} = \langle G_k | G_l \rangle = \left(\frac{\pi^{n-1}}{|\mathbf{A}_k + \mathbf{A}_l|}\right)^{3/2}$$
 
-**Kinetic energy** (for the internal Hamiltonian with mass matrix Lambda):
+**Kinetic energy** (for the internal Hamiltonian with mass matrix $\boldsymbol{\Lambda}$):
 
-```
-T_{kl} = < G_k | T | G_l > = 3 Tr[ A_k Lambda^{-1} A_l (A_k + A_l)^{-1} ] S_{kl}
-```
+$$T_{kl} = \langle G_k | \hat{T} | G_l \rangle = 3\,\text{Tr}\left[\mathbf{A}_k \boldsymbol{\Lambda}^{-1} \mathbf{A}_l (\mathbf{A}_k + \mathbf{A}_l)^{-1}\right] S_{kl}$$
 
-**Coulomb interaction** (V = q_i q_j / r_{ij}, where
-r_{ij}^2 = rho^T P_{ij} rho for an appropriate projection matrix P_{ij}):
+**Coulomb interaction** ($V = q_i q_j / r_{ij}$, where
+$r_{ij}^2 = \boldsymbol{\rho}^T \mathbf{P}_{ij}\,\boldsymbol{\rho}$ for an appropriate projection matrix $\mathbf{P}_{ij}$):
 
-```
-V_{kl}^{(ij)} = (2 q_i q_j / sqrt(pi))
-    * ( pi^{n-1} / |A_k + A_l| )^{3/2}
-    * 1 / sqrt( Tr[ P_{ij} (A_k + A_l)^{-1} ] )
-```
+$$V_{kl}^{(ij)} = \frac{2\,q_i q_j}{\sqrt{\pi}} \left(\frac{\pi^{n-1}}{|\mathbf{A}_k + \mathbf{A}_l|}\right)^{3/2} \frac{1}{\sqrt{\text{Tr}\left[\mathbf{P}_{ij}(\mathbf{A}_k + \mathbf{A}_l)^{-1}\right]}}$$
 
 ### 5.4 Generalized Eigenvalue Problem
 
 The total energy is obtained by solving the generalized eigenvalue problem:
 
-```
-H c = E S c
-```
+$$\mathbf{H}\mathbf{c} = E\,\mathbf{S}\mathbf{c}$$
 
-where H_{kl} = T_{kl} + V_{kl} and S_{kl} are the Hamiltonian and
+where $H_{kl} = T_{kl} + V_{kl}$ and $S_{kl}$ are the Hamiltonian and
 overlap matrix elements.
 
 ### 5.5 Nonlinear Parameter Optimization
 
-The ECG exponent matrices {A_k} are **nonlinear variational parameters**
+The ECG exponent matrices $\{\mathbf{A}_k\}$ are **nonlinear variational parameters**
 that must be optimized. The energy is a function of both the linear
-coefficients c and the nonlinear parameters alpha = {A_k^{(ij)}}:
+coefficients $\mathbf{c}$ and the nonlinear parameters $\boldsymbol{\alpha} = \{A_k^{(ij)}\}$:
 
-```
-E(alpha) = min_c  c^T H(alpha) c / c^T S(alpha) c
-```
+$$E(\boldsymbol{\alpha}) = \min_{\mathbf{c}} \frac{\mathbf{c}^T \mathbf{H}(\boldsymbol{\alpha})\,\mathbf{c}}{\mathbf{c}^T \mathbf{S}(\boldsymbol{\alpha})\,\mathbf{c}}$$
 
 The gradient with respect to the nonlinear parameters (crucial for JAX
 autodiff) is:
 
-```
-dE/d alpha_m = [ c^T (dH/d alpha_m) c - E c^T (dS/d alpha_m) c ] / (c^T S c)
-```
+$$\frac{\partial E}{\partial \alpha_m} = \frac{\mathbf{c}^T \frac{\partial \mathbf{H}}{\partial \alpha_m}\mathbf{c} - E\,\mathbf{c}^T \frac{\partial \mathbf{S}}{\partial \alpha_m}\mathbf{c}}{\mathbf{c}^T \mathbf{S}\,\mathbf{c}}$$
 
-This is where **JAX autodiff is transformative**: dH_{kl}/dA_k^{(ij)}
-and dS_{kl}/dA_k^{(ij)} can be computed automatically from the analytic
+This is where **JAX autodiff is transformative**: $\partial H_{kl}/\partial A_k^{(ij)}$
+and $\partial S_{kl}/\partial A_k^{(ij)}$ can be computed automatically from the analytic
 matrix element expressions, enabling gradient-based optimization (L-BFGS,
 Adam) of thousands of nonlinear parameters.
 
@@ -467,21 +398,16 @@ traditional one-at-a-time approach.
 ### 5.7 Antisymmetrization for Fermions
 
 For systems with identical fermions (electrons), the antisymmetrization
-operator A generates N_e! permutations:
+operator $\hat{\mathcal{A}}$ generates $N_e!$ permutations:
 
-```
-A = (1/N_e!) Sum_{P in S_{N_e}} (-1)^P P_hat
-```
+$$\hat{\mathcal{A}} = \frac{1}{N_e!} \sum_{P \in S_{N_e}} (-1)^P \hat{P}$$
 
 For ECGs, permuting particles corresponds to a linear transformation of
-the A_k matrix:
+the $\mathbf{A}_k$ matrix:
 
-```
-P_hat G_k(rho) = G_k(P_rho rho)
-    = exp( -rho^T (P_rho^T A_k P_rho (x) I_3) rho )
-```
+$$\hat{P}\,G_k(\boldsymbol{\rho}) = G_k(\mathbf{P}_\rho\,\boldsymbol{\rho}) = \exp\left(-\boldsymbol{\rho}^T (\mathbf{P}_\rho^T \mathbf{A}_k \mathbf{P}_\rho \otimes \mathbf{I}_3)\,\boldsymbol{\rho}\right)$$
 
-where P_rho is the permutation matrix in relative coordinates.
+where $\mathbf{P}_\rho$ is the permutation matrix in relative coordinates.
 All matrix elements involving permuted Gaussians remain analytically
 computable.
 
@@ -491,7 +417,7 @@ Current ECG calculations achieve:
 - H2 (4 particles): energy to 10^{-12} Hartree accuracy
 - Ps2 (positronium molecule, 4 particles): first prediction of stability
 - LiH (6 particles at the edge of tractability): ~10^{-6} Hartree
-- Scaling: O(K^3 * N!) per eigensolve, where K is basis size and N!
+- Scaling: $\mathcal{O}(K^3 \cdot N!)$ per eigensolve, where $K$ is basis size and $N!$
   is the permutation count
 
 ---
@@ -502,32 +428,21 @@ Current ECG calculations achieve:
 
 The path integral formulation replaces the nuclear quantum mechanics with
 an equivalent classical problem in an extended phase space. For a system
-at thermal equilibrium (temperature T, beta = 1/(k_B T)), the quantum
+at thermal equilibrium (temperature $T$, $\beta = 1/k_B T$), the quantum
 partition function is:
 
-```
-Z = Tr[ exp(-beta H) ]
-  = integral dR < R | exp(-beta H) | R >
-```
+$$Z = \text{Tr}\left[e^{-\beta \hat{H}}\right] = \int d\mathbf{R}\, \langle \mathbf{R} | e^{-\beta \hat{H}} | \mathbf{R} \rangle$$
 
-Using the Trotter factorization with P imaginary-time slices
-(Delta_tau = beta*hbar / P):
+Using the Trotter factorization with $P$ imaginary-time slices
+($\Delta\tau = \beta\hbar / P$):
 
-```
-exp(-beta H) ~ ( exp(-Delta_tau V/2) exp(-Delta_tau T) exp(-Delta_tau V/2) )^P
-```
+$$e^{-\beta \hat{H}} \approx \left(e^{-\Delta\tau \hat{V}/2}\, e^{-\Delta\tau \hat{T}}\, e^{-\Delta\tau \hat{V}/2}\right)^P$$
 
 The partition function becomes:
 
-```
-Z = lim_{P->inf} (M P / (2 pi beta hbar^2))^{3NP/2}
-    integral Prod_{s=1}^{P} dR^{(s)}
-    exp( -beta_P Sum_{s=1}^{P} [
-        M P / (2 beta^2 hbar^2) |R^{(s+1)} - R^{(s)}|^2 + V(R^{(s)})
-    ] )
-```
+$$Z = \lim_{P \to \infty} \left(\frac{MP}{2\pi\beta\hbar^2}\right)^{3NP/2} \int \prod_{s=1}^{P} d\mathbf{R}^{(s)}\, \exp\left(-\beta_P \sum_{s=1}^{P} \left[\frac{MP}{2\beta^2\hbar^2} |\mathbf{R}^{(s+1)} - \mathbf{R}^{(s)}|^2 + V(\mathbf{R}^{(s)})\right]\right)$$
 
-where beta_P = beta/P and R^{(P+1)} = R^{(1)} (cyclic boundary
+where $\beta_P = \beta/P$ and $\mathbf{R}^{(P+1)} \equiv \mathbf{R}^{(1)}$ (cyclic boundary
 conditions -- ring polymer).
 
 ### 6.2 Ring Polymer Isomorphism
@@ -536,28 +451,19 @@ The key result: the quantum partition function is **exactly** equal to
 the classical partition function of a **ring polymer** -- a system of P
 replicas (beads) connected by harmonic springs:
 
-```
-Z_quantum^{nuclear} = Z_classical^{ring-polymer}
-```
+$$Z_{quantum}^{nuclear} = Z_{classical}^{ring\text{-}polymer}$$
 
-Each nucleus A is replaced by P beads {R_A^{(1)}, ..., R_A^{(P)}}
+Each nucleus $A$ is replaced by $P$ beads $\{\mathbf{R}_A^{(1)}, \ldots, \mathbf{R}_A^{(P)}\}$
 connected by springs with force constant:
 
-```
-k_spring = M_A P / (beta^2 hbar^2) = M_A omega_P^2
-
-where omega_P = P / (beta hbar) = P k_B T / hbar
-```
+$$k_{spring} = \frac{M_A P}{\beta^2 \hbar^2} = M_A \omega_P^2 \qquad \text{where } \omega_P = \frac{P}{\beta\hbar} = \frac{P k_B T}{\hbar}$$
 
 ### 6.3 PIMD Equations of Motion
 
 Ring Polymer Molecular Dynamics (RPMD) propagates the ring polymer using
 classical equations of motion:
 
-```
-M_A R_A^{(s)}_ddot = -M_A omega_P^2 (2 R_A^{(s)} - R_A^{(s-1)} - R_A^{(s+1)})
-                     - nabla_A V(R^{(s)})
-```
+$$M_A \ddot{\mathbf{R}}_A^{(s)} = -M_A \omega_P^2 \left(2\mathbf{R}_A^{(s)} - \mathbf{R}_A^{(s-1)} - \mathbf{R}_A^{(s+1)}\right) - \nabla_A V(\mathbf{R}^{(s)})$$
 
 where the first term is the intra-bead spring force and the second is
 the physical force from the potential (which is the BO PES from jax_qc).
@@ -565,80 +471,59 @@ the physical force from the potential (which is the BO PES from jax_qc).
 **Thermostatted RPMD** (for canonical ensemble sampling): Apply a
 Langevin thermostat to each bead:
 
-```
-M_A R_A^{(s)}_ddot = F_A^{(s)}
-                     - gamma M_A R_A^{(s)}_dot
-                     + sqrt(2 gamma M_A k_B T) eta_A^{(s)}(t)
-```
+$$M_A \ddot{\mathbf{R}}_A^{(s)} = \mathbf{F}_A^{(s)} - \gamma M_A \dot{\mathbf{R}}_A^{(s)} + \sqrt{2\gamma M_A k_B T}\,\boldsymbol{\eta}_A^{(s)}(t)$$
 
-where gamma is the friction coefficient and eta is Gaussian white noise.
+where $\gamma$ is the friction coefficient and $\boldsymbol{\eta}$ is Gaussian white noise.
 
 ### 6.4 Normal Mode Transformation
 
 The ring polymer Hamiltonian is diagonalized by the discrete Fourier
 transform (normal mode transformation):
 
-```
-R_A_tilde^{(k)} = (1/sqrt(P)) Sum_{s=1}^{P} R_A^{(s)} exp(-2 pi i k s / P)
-```
+$$\tilde{\mathbf{R}}_A^{(k)} = \frac{1}{\sqrt{P}} \sum_{s=1}^{P} \mathbf{R}_A^{(s)}\, e^{-2\pi i k s / P}$$
 
 In normal mode coordinates, the spring potential becomes:
 
-```
-V_spring = (1/2) M_A Sum_{k=0}^{P-1} omega_k^2 |R_A_tilde^{(k)}|^2
+$$V_{spring} = \frac{1}{2} M_A \sum_{k=0}^{P-1} \omega_k^2 |\tilde{\mathbf{R}}_A^{(k)}|^2 \qquad \text{where } \omega_k = 2\omega_P \sin\left(\frac{k\pi}{P}\right)$$
 
-where omega_k = 2 omega_P sin(k pi / P)
-```
-
-The k=0 mode is the centroid (center of mass of the ring polymer),
-and k > 0 are the internal fluctuation modes.
+The $k=0$ mode is the centroid (center of mass of the ring polymer),
+and $k > 0$ are the internal fluctuation modes.
 
 ### 6.5 Estimators for Physical Observables
 
 **Thermodynamic energy** (virial estimator -- lower variance than
 primitive):
 
-```
-<E> = 3N / (2 beta)
-    + (1/P) Sum_{s=1}^{P} [
-        V(R^{(s)})
-        + (1/2) Sum_A (R_A^{(s)} - R_A_bar) . nabla_A V(R^{(s)})
-      ]
-```
+$$\langle E \rangle = \frac{3N}{2\beta} + \frac{1}{P} \sum_{s=1}^{P} \left[V(\mathbf{R}^{(s)}) + \frac{1}{2} \sum_A (\mathbf{R}_A^{(s)} - \bar{\mathbf{R}}_A) \cdot \nabla_A V(\mathbf{R}^{(s)})\right]$$
 
-where R_A_bar = (1/P) Sum_s R_A^{(s)} is the centroid.
+where $\bar{\mathbf{R}}_A = \frac{1}{P}\sum_s \mathbf{R}_A^{(s)}$ is the centroid.
 
 **Radius of gyration** (measures nuclear delocalization):
 
-```
-R_gyr_A^2 = (1/P) Sum_{s=1}^{P} |R_A^{(s)} - R_A_bar|^2
-```
+$$R_{gyr,A}^2 = \frac{1}{P} \sum_{s=1}^{P} |\mathbf{R}_A^{(s)} - \bar{\mathbf{R}}_A|^2$$
 
-For classical nuclei, R_gyr = 0. For quantum nuclei at temperature T:
+For classical nuclei, $R_{gyr} = 0$. For quantum nuclei at temperature $T$:
 
-```
-R_gyr ~ hbar / sqrt(12 M_A k_B T)    (free particle limit)
-```
+$$R_{gyr} \approx \frac{\hbar}{\sqrt{12\,M_A k_B T}} \qquad \text{(free particle limit)}$$
 
 ### 6.6 Integration with jax_qc
 
 The connection to the existing jax_qc framework is natural:
 
-1. **Each bead** R^{(s)} defines a molecular geometry.
-2. The **energy** V(R^{(s)}) is computed by `jax_qc.energy()`.
-3. The **force** -nabla_A V(R^{(s)}) is computed by
+1. **Each bead** $\mathbf{R}^{(s)}$ defines a molecular geometry.
+2. The **energy** $V(\mathbf{R}^{(s)})$ is computed by `jax_qc.energy()`.
+3. The **force** $-\nabla_A V(\mathbf{R}^{(s)})$ is computed by
    `jax_qc.compute_gradient()`.
-4. The **PIMD integrator** adds the spring forces and thermostat.
 
-All P beads can be evaluated **in parallel** (Applicative structure),
+All $P$ beads can be evaluated **in parallel** (Applicative structure),
 making this a natural fit for JAX's `vmap` over beads.
 
 ### 6.7 Key Parameters
 
 | Parameter | Typical Value | Notes |
 |-----------|--------------|-------|
-| P (beads) | 8-64 | More beads = better Trotter convergence; P ~ 1/T |
-| Delta_t (time step) | 0.5-1.0 fs | Limited by highest spring frequency omega_{P-1} |
+| $P$ (beads) | 8-64 | More beads = better Trotter convergence; $P \propto 1/T$ |
+| $\Delta t$ (time step) | 0.5-1.0 fs | Limited by highest spring frequency $\omega_{P-1}$ |
 | Thermostat | PILE-G or GLE | PILE (Path Integral Langevin Equation) is optimal for PIMD |
 | Temperature | 100-1000 K | Nuclear quantum effects most important at low T |
 
@@ -656,32 +541,23 @@ tradeoffs.
 
 ### 7.1 The Tunneling Problem
 
-Consider a particle of mass M in a one-dimensional double-well potential
-V(x) with barrier height V_b at x = 0 and minima at x = +/- x_0:
+Consider a particle of mass $M$ in a one-dimensional double-well potential
+$V(x)$ with barrier height $V_b$ at $x = 0$ and minima at $x = \pm x_0$:
 
-```
-V(x) = V_b (1 - x^2/x_0^2)^2    (symmetric double well)
-```
+$$V(x) = V_b \left(1 - \frac{x^2}{x_0^2}\right)^2 \qquad \text{(symmetric double well)}$$
 
-**Classical mechanics**: A particle with energy E < V_b is confined to
-one well. The classically forbidden region is {x : V(x) > E}.
+**Classical mechanics**: A particle with energy $E < V_b$ is confined to
+one well. The classically forbidden region is $\{x : V(x) > E\}$.
 
 **Quantum mechanics**: The wavefunction has non-zero amplitude in the
 forbidden region, decaying as:
 
-```
-psi(x) ~ exp( -integral_{x_1}^{x_2} kappa(x') dx' )
+$$\psi(x) \sim \exp\left(-\int_{x_1}^{x_2} \kappa(x')\,dx'\right) \qquad \text{where } \kappa(x) = \frac{\sqrt{2M(V(x) - E)}}{\hbar}$$
 
-where kappa(x) = sqrt(2M(V(x) - E)) / hbar
-```
-
-The tunneling probability through a barrier of width L and height V_b
+The tunneling probability through a barrier of width $L$ and height $V_b$
 scales as:
 
-```
-T ~ exp( -2 integral_0^L sqrt(2M(V(x) - E)) dx / hbar )
-  ~ exp( -2L sqrt(2M V_b) / hbar )
-```
+$$\mathcal{T} \sim \exp\left(-\frac{2}{\hbar}\int_0^L \sqrt{2M(V(x) - E)}\,dx\right) \sim \exp\left(-\frac{2L\sqrt{2M V_b}}{\hbar}\right)$$
 
 This exponential sensitivity to mass and barrier height is why tunneling
 is critical for light nuclei (H, D, T) and irrelevant for heavy atoms.
@@ -691,27 +567,20 @@ is critical for light nuclei (H, D, T) and irrelevant for heavy atoms.
 For a symmetric double well, the ground state splits into a symmetric
 (+) and antisymmetric (-) pair separated by the tunneling splitting:
 
-```
-Delta = E_- - E_+ = (hbar omega / pi) exp(-S_inst / hbar)
-```
+$$\Delta = E_- - E_+ = \frac{\hbar\omega}{\pi}\,\exp\left(-\frac{S_{inst}}{\hbar}\right)$$
 
-where omega is the harmonic frequency at the well minimum and S_inst is
+where $\omega$ is the harmonic frequency at the well minimum and $S_{inst}$ is
 the **instanton action** (the Euclidean action along the classical path
 in imaginary time that connects the two wells):
 
-```
-S_inst = integral_{-inf}^{+inf} d tau [ (1/2) M x_dot^2 + V(x) ]
-       = integral_{x_-}^{x_+} sqrt(2M V(x)) dx
-```
+$$S_{inst} = \int_{-\infty}^{+\infty} d\tau\,\left[\frac{1}{2}M\dot{x}^2 + V(x)\right] = \int_{x_-}^{x_+} \sqrt{2M\,V(x)}\,dx$$
 
 The instanton (also called the "bounce") is the solution to Newton's
-equation in the *inverted* potential -V(x):
+equation in the *inverted* potential $-V(x)$:
 
-```
-M x_ddot = +dV/dx    (note: plus sign, inverted potential)
-```
+$$M\ddot{x} = +\frac{dV}{dx} \qquad \text{(note: plus sign, inverted potential)}$$
 
-with boundary conditions x(tau -> -inf) = x_- and x(tau -> +inf) = x_+.
+with boundary conditions $x(\tau \to -\infty) = x_-$ and $x(\tau \to +\infty) = x_+$.
 
 ### 7.3 Tunneling in Path Integral Methods
 
@@ -739,9 +608,7 @@ the ring polymer potential energy surface.
 
 **Ring polymer potential**:
 
-```
-U_RP({R^(s)}) = Sum_{s=1}^{P} [ (M P / 2 beta^2 hbar^2) |R^{(s+1)} - R^{(s)}|^2 + V(R^{(s)}) ]
-```
+$$U_{RP}(\{\mathbf{R}^{(s)}\}) = \sum_{s=1}^{P} \left[\frac{MP}{2\beta^2\hbar^2} |\mathbf{R}^{(s+1)} - \mathbf{R}^{(s)}|^2 + V(\mathbf{R}^{(s)})\right]$$
 
 The instanton is the stationary point of U_RP that is a first-order
 saddle (one negative eigenvalue in the Hessian) corresponding to the
@@ -749,14 +616,10 @@ ring polymer stretched across the barrier.
 
 **RPI tunneling rate** (thermal, semiclassical):
 
-```
-k_RPI = (1 / 2 pi hbar) sqrt( |lambda_1| / (2 pi)^{P-1} )
-        * ( Prod_{k=2}^{P} lambda_k )^{-1/2}
-        * exp(-beta_P U_RP^{inst})
-```
+$$k_{RPI} = \frac{1}{2\pi\hbar} \sqrt{\frac{|\lambda_1|}{(2\pi)^{P-1}}} \left(\prod_{k=2}^{P} \lambda_k\right)^{-1/2} \exp\left(-\beta_P\, U_{RP}^{inst}\right)$$
 
-where lambda_1 < 0 is the single negative Hessian eigenvalue and
-lambda_k (k >= 2) are the positive eigenvalues of the ring polymer
+where $\lambda_1 < 0$ is the single negative Hessian eigenvalue and
+$\lambda_k$ ($k \geq 2$) are the positive eigenvalues of the ring polymer
 Hessian at the instanton configuration.
 
 **JAX implementation advantage**: The instanton search requires:
@@ -776,7 +639,7 @@ Standard RPMD has known deficiencies for deep tunneling:
 - **Spurious resonance**: At low T, the ring polymer internal modes can
   resonate with the physical barrier frequency.
 - **Correct scaling but wrong prefactor**: RPMD gives the correct
-  Arrhenius slope (dominated by exp(-S_inst/hbar)) but the prefactor
+  Arrhenius slope (dominated by $\exp(-S_{inst}/\hbar)$) but the prefactor
   can be off by factors of 2-3 for asymmetric barriers.
 
 **Remedies available in the framework**:
@@ -795,20 +658,16 @@ amplitude in the classically forbidden region.
 
 For a double well, the ECG wavefunction:
 
-```
-Psi = Sum_k c_k exp(-alpha_k (x - s_k)^2)
-```
+$$\Psi = \sum_k c_k \exp\left(-\alpha_k (x - s_k)^2\right)$$
 
-can place Gaussian centers s_k on both sides of the barrier and inside
+can place Gaussian centers $s_k$ on both sides of the barrier and inside
 the forbidden region. The linear coefficients c_k automatically produce
 the correct symmetric (+) and antisymmetric (-) combinations.
 
 **Tunneling splitting from ECG**: Solve the generalized eigenvalue
-problem for the two lowest eigenvalues E_0 and E_1:
+problem for the two lowest eigenvalues $E_0$ and $E_1$:
 
-```
-Delta = E_1 - E_0
-```
+$$\Delta = E_1 - E_0$$
 
 This is exact within the basis set completeness -- no semiclassical
 approximation is needed.
@@ -818,15 +677,15 @@ approximation is needed.
 Accurate tunneling splittings require ECG functions in the barrier region
 where |Psi|^2 is exponentially small. This demands:
 
-- **Wide Gaussians** (small alpha_k) that extend into the barrier.
-- **Functions centered in the forbidden region** (s_k near the barrier
+- **Wide Gaussians** (small $\alpha_k$) that extend into the barrier.
+- **Functions centered in the forbidden region** ($s_k$ near the barrier
   top) to capture the evanescent wavefunction.
 - **High precision arithmetic**: the tunneling splitting can be 10^{-6}
   times the well depth, requiring many digits of accuracy in the
   eigensolve.
 
 The stochastic variational method (SVM) with JAX gradient refinement is
-well-suited: the gradient dE/d{s_k, alpha_k} will drive basis functions
+well-suited: the gradient $\partial E/\partial\{s_k, \alpha_k\}$ will drive basis functions
 into the barrier region where they most reduce the energy of the
 antisymmetric state.
 
@@ -837,11 +696,9 @@ For molecular systems, tunneling occurs along a **minimum energy path**
 handles this because the correlated Gaussian exponent matrices A_k
 encode multi-dimensional correlations:
 
-```
-G_k(rho) = exp(-rho^T A_k rho)
-```
+$$G_k(\boldsymbol{\rho}) = \exp\left(-\boldsymbol{\rho}^T \mathbf{A}_k\,\boldsymbol{\rho}\right)$$
 
-A large off-diagonal element (A_k)_{ij} correlates coordinates i and j,
+A large off-diagonal element $(A_k)_{ij}$ correlates coordinates $i$ and $j$,
 allowing the Gaussian to be oriented along the MEP rather than aligned
 with the Cartesian axes. This is equivalent to using the "tunneling
 path" as a natural coordinate, without explicitly constructing it.
@@ -851,24 +708,16 @@ path" as a natural coordinate, without explicitly constructing it.
 #### 7.5.1 Tunneling Through the TDPES
 
 In the EF framework, nuclear tunneling appears in the exact
-time-dependent potential energy surface (TDPES) epsilon(R, t). During a
+time-dependent potential energy surface (TDPES) $\epsilon(\mathbf{R}, t)$. During a
 tunneling event:
 
-```
-Before tunneling:   chi(R) localized in well A
-                    epsilon(R) ~ V_BO(R)  (standard BO surface)
-
-During tunneling:   chi(R) developing amplitude in well B
-                    epsilon(R) develops a "step" that lowers the
-                    barrier, effectively guiding chi through
-
-After tunneling:    chi(R) has amplitude in both wells
-                    epsilon(R) shows the tunneling splitting
-```
+- **Before tunneling**: $\chi(\mathbf{R})$ localized in well A; $\epsilon(\mathbf{R}) \approx V_{BO}(\mathbf{R})$ (standard BO surface)
+- **During tunneling**: $\chi(\mathbf{R})$ developing amplitude in well B; $\epsilon(\mathbf{R})$ develops a "step" that lowers the barrier, effectively guiding $\chi$ through
+- **After tunneling**: $\chi(\mathbf{R})$ has amplitude in both wells; $\epsilon(\mathbf{R})$ shows the tunneling splitting
 
 The key insight: the **exact** TDPES dynamically reshapes to facilitate
-tunneling. The barrier in epsilon(R) is *lower* than the BO barrier
-V_BO(R) because it includes the electron-nuclear correlation energy
+tunneling. The barrier in $\epsilon(\mathbf{R})$ is *lower* than the BO barrier
+$V_{BO}(\mathbf{R})$ because it includes the electron-nuclear correlation energy
 that stabilizes the tunneling configuration.
 
 #### 7.5.2 Quantum Potential and Tunneling Force
@@ -876,30 +725,24 @@ that stabilizes the tunneling configuration.
 In the conditional trajectory formulation of EF, the nuclear trajectories
 obey:
 
-```
-M_A R_A_ddot = -d epsilon/dR_A - (1/2M_A) d/dR_A ( nabla_A^2 |chi| / |chi| )
-```
+$$M_A \ddot{\mathbf{R}}_A = -\frac{\partial \epsilon}{\partial \mathbf{R}_A} - \frac{1}{2M_A}\frac{\partial}{\partial \mathbf{R}_A}\left(\frac{\nabla_A^2 |\chi|}{|\chi|}\right)$$
 
 The second term is the **quantum potential** (Bohm potential):
 
-```
-Q(R) = -(hbar^2 / 2M) nabla^2 |chi| / |chi|
-```
+$$Q(\mathbf{R}) = -\frac{\hbar^2}{2M}\frac{\nabla^2 |\chi|}{|\chi|}$$
 
 This quantum force is what drives trajectories through the classically
-forbidden region. At the edges of the wavepacket (where |chi| is small
-and rapidly varying), Q(R) becomes large and repulsive, effectively
+forbidden region. At the edges of the wavepacket (where $|\chi|$ is small
+and rapidly varying), $Q(\mathbf{R})$ becomes large and repulsive, effectively
 "pushing" the trajectory through the barrier.
 
-For a Gaussian wavepacket chi(R) = exp(-alpha(R - R_0)^2 + ikR):
+For a Gaussian wavepacket $\chi(R) = \exp(-\alpha(R - R_0)^2 + ikR)$:
 
-```
-Q(R) = (hbar^2 alpha / M) [ 1 - 2 alpha (R - R_0)^2 ]
-```
+$$Q(R) = \frac{\hbar^2 \alpha}{M}\left[1 - 2\alpha(R - R_0)^2\right]$$
 
-Near the center (R ~ R_0), Q is positive (repulsive), broadening the
-packet. At the tails, Q changes sign, and the interplay with the
-classical potential V(R) determines whether the trajectory tunnels.
+Near the center ($R \sim R_0$), $Q$ is positive (repulsive), broadening the
+packet. At the tails, $Q$ changes sign, and the interplay with the
+classical potential $V(R)$ determines whether the trajectory tunnels.
 
 #### 7.5.3 Advantages for Tunneling
 
@@ -913,8 +756,8 @@ The EF approach to tunneling has unique strengths:
   the transmission/reflection ratio from the fraction of trajectories
   that cross.
 
-The main challenge is numerical: the quantum potential Q(R) diverges
-where |chi| has nodes, requiring careful regularization or adaptive
+The main challenge is numerical: the quantum potential $Q(\mathbf{R})$ diverges
+where $|\chi|$ has nodes, requiring careful regularization or adaptive
 grids.
 
 ### 7.6 Comparison of Tunneling Treatments
@@ -922,24 +765,24 @@ grids.
 | Aspect | PIMD/RPMD | RPI (Instanton) | ECG | Exact Factorization |
 |--------|-----------|-----------------|-----|---------------------|
 | **Theory level** | Exact (thermo) / approximate (dynamics) | Semiclassical | Exact (variational) | Exact |
-| **Tunneling splitting** | Indirect (from free energy) | Analytic formula | Direct eigenvalue difference | From TDPES dynamics |
-| **Tunneling rate** | From long-time correlation functions | Analytic (saddle-point) | N/A (bound states only) | From transmission coefficient |
+| **Tunneling splitting** | Indirect (from free energy) | Analytic formula | Direct eigenvalue difference $\Delta = E_1 - E_0$ | From TDPES dynamics |
+| **Tunneling rate** | From long-time correlation functions | Analytic (saddle-point) | N/A (bound states only) | From transmission coefficient $\mathcal{T}(E)$ |
 | **Deep tunneling** | Underestimates (RPMD) | Accurate | Exact | Exact |
 | **Multi-dimensional** | Natural (ring polymer in full space) | Requires MEP | Natural (correlated Gaussians) | Grid scaling limits dimensions |
-| **Temperature** | Finite T only | Low T (semiclassical) | T = 0 (ground state) | Any |
-| **Computational cost** | O(P * N_SCF) per step | O(P^3) for Hessian eigenvalues | O(K^3 * N!) eigensolve | Grid-based: exponential in dim |
+| **Temperature** | Finite $T$ only | Low $T$ (semiclassical) | $T = 0$ (ground state) | Any |
+| **Computational cost** | $\mathcal{O}(P \cdot N_{SCF})$ per step | $\mathcal{O}(P^3)$ for Hessian eigenvalues | $\mathcal{O}(K^3 \cdot N!)$ eigensolve | Grid-based: exponential in dim |
 | **JAX advantage** | vmap over beads | jax.hessian for RPI | jax.grad for basis optimization | jax.grad for TDPES |
 
 ### 7.7 Benchmark Systems for Tunneling
 
 | System | Tunneling Type | Observable | Method of Choice |
 |--------|---------------|------------|-----------------|
-| **Eckart barrier** | 1D scattering | Transmission coefficient T(E) | All (analytic reference) |
-| **Symmetric double well** | 1D bound state | Tunneling splitting Delta | ECG, RPI |
-| **H + H2 -> H2 + H** | Collinear reactive | Thermal rate k(T) | RPMD, RPI |
-| **Malonaldehyde** | Intramolecular H-transfer | Tunneling splitting (21 cm^{-1}) | PIMD, RPI |
+| **Eckart barrier** | 1D scattering | Transmission coefficient $\mathcal{T}(E)$ | All (analytic reference) |
+| **Symmetric double well** | 1D bound state | Tunneling splitting $\Delta$ | ECG, RPI |
+| **H + H$_2$ $\to$ H$_2$ + H** | Collinear reactive | Thermal rate $k(T)$ | RPMD, RPI |
+| **Malonaldehyde** | Intramolecular H-transfer | Tunneling splitting (21 cm$^{-1}$) | PIMD, RPI |
 | **Formic acid dimer** | Double H-transfer (concerted) | Tunneling splitting | RPI |
-| **H in Pd** | Diffusion through metal | Diffusion coefficient D(T) | PIMD |
+| **H in Pd** | Diffusion through metal | Diffusion coefficient $D(T)$ | PIMD |
 | **Water hexamer prism** | Collective H-bond rearrangement | Tunneling splitting | RPI |
 
 #### 7.7.1 The Eckart Barrier (Analytic Reference)
@@ -947,29 +790,20 @@ grids.
 The Eckart barrier has an exact quantum transmission coefficient, making
 it the standard test for tunneling methods:
 
-```
-V(x) = V_0 / cosh^2(x / a)
-```
+$$V(x) = \frac{V_0}{\cosh^2(x/a)}$$
 
-Exact transmission coefficient (for energy E):
+Exact transmission coefficient (for energy $E$):
 
-```
-T(E) = [ cosh(2 pi (alpha - beta)) - 1 ] / [ cosh(2 pi (alpha + beta)) - 1 ]
+$$\mathcal{T}(E) = \frac{\cosh\left(2\pi(\alpha - \beta)\right) - 1}{\cosh\left(2\pi(\alpha + \beta)\right) - 1}$$
 
-where alpha = (a / hbar) sqrt(2ME)
-      beta  = (a / hbar) sqrt(2M(V_0 - E))    if E < V_0
-```
+where $\alpha = \frac{a}{\hbar}\sqrt{2ME}$ and $\beta = \frac{a}{\hbar}\sqrt{2M(V_0 - E)}$ for $E < V_0$.
 
 The **crossover temperature** separating thermal activation from
 tunneling-dominated kinetics is:
 
-```
-T_c = hbar omega_b / (2 pi k_B)
+$$T_c = \frac{\hbar\omega_b}{2\pi k_B} \qquad \text{where } \omega_b = \sqrt{\frac{2V_0}{Ma^2}} \text{ is the barrier frequency}$$
 
-where omega_b = sqrt(2 V_0 / (M a^2))  is the barrier frequency
-```
-
-Below T_c, the thermal rate is dominated by tunneling. Above T_c,
+Below $T_c$, the thermal rate is dominated by tunneling. Above $T_c$,
 classical over-barrier transitions dominate.
 
 #### 7.7.2 Implementation Plan for Tunneling Benchmarks
@@ -1006,7 +840,7 @@ tests/test_tunneling.py
 
 ## 8. Survey of Existing Non-BO Codes
 
-### 7.1 Explicitly Correlated Gaussians
+### 8.1 Explicitly Correlated Gaussians
 
 | Code | Authors | Language | Particles | Features |
 |------|---------|----------|-----------|----------|
@@ -1024,7 +858,7 @@ tests/test_tunneling.py
 ECG parameters; GPU vmap for parallel matrix element evaluation;
 flexible particle types via configuration.
 
-### 7.2 Exact Factorization
+### 8.2 Exact Factorization
 
 | Code | Authors | Language | Features |
 |------|---------|----------|----------|
@@ -1037,7 +871,7 @@ flexible particle types via configuration.
 - 3D molecular EF is largely unexplored computationally
 - Trajectory-based approaches have issues with wavefunction phase
 
-### 7.3 Path Integral Methods
+### 8.3 Path Integral Methods
 
 | Code | Authors | Language | Features |
 |------|---------|----------|----------|
@@ -1303,30 +1137,28 @@ Tunneling (RPI)           Adjunction          saddle-point opt   GPU
 
 | Quantity | Symbol | Value (a.u.) |
 |----------|--------|-------------|
-| Proton mass | M_p | 1836.15267 |
-| Deuteron mass | M_d | 3670.48297 |
-| Triton mass | M_t | 5496.92154 |
-| Positron mass | m_{e+} | 1.0 |
-| Muon mass | m_mu | 206.768 |
-| Boltzmann constant | k_B | 3.16681e-6 Ha/K |
-| hbar | hbar | 1.0 |
+| Proton mass | $M_p$ | 1836.15267 |
+| Deuteron mass | $M_d$ | 3670.48297 |
+| Triton mass | $M_t$ | 5496.92154 |
+| Positron mass | $m_{e^+}$ | 1.0 |
+| Muon mass | $m_\mu$ | 206.768 |
+| Boltzmann constant | $k_B$ | $3.16681 \times 10^{-6}$ Ha/K |
+| $\hbar$ | $\hbar$ | 1.0 |
 
 ## Appendix B: BO Error Estimates
 
 The leading-order BO correction (diagonal BO correction, DBOC) scales as:
 
-```
-Delta_E_DBOC = Sum_A (1 / 2M_A) < psi | nabla_A^2 | psi >
-```
+$$\Delta E_{DBOC} = \sum_A \frac{1}{2M_A} \langle \psi | \nabla_A^2 | \psi \rangle$$
 
 Typical magnitudes:
 
-| System | Delta_E_DBOC (cm^{-1}) | Delta_E_DBOC (uHa) |
+| System | $\Delta E_{DBOC}$ (cm$^{-1}$) | $\Delta E_{DBOC}$ ($\mu$Ha) |
 |--------|------------------------|---------------------|
-| H2 | ~1.0 | ~4.6 |
-| H2O | ~0.3 | ~1.4 |
+| H$_2$ | ~1.0 | ~4.6 |
+| H$_2$O | ~0.3 | ~1.4 |
 | LiH | ~0.1 | ~0.5 |
-| CH4 | ~0.2 | ~0.9 |
+| CH$_4$ | ~0.2 | ~0.9 |
 
 For comparison, the BO energy of H2/STO-3G is ~-1.117 Ha, so the
 DBOC correction is ~4e-6 relative -- below the 1 uHa accuracy target
