@@ -12,9 +12,10 @@
 4. [Exact Factorization (EF)](#4-exact-factorization-ef)
 5. [Explicitly Correlated Gaussians (ECG)](#5-explicitly-correlated-gaussians-ecg)
 6. [Path Integral Molecular Dynamics (PIMD)](#6-path-integral-molecular-dynamics-pimd)
-7. [Survey of Existing Non-BO Codes](#7-survey-of-existing-non-bo-codes)
-8. [Implementation Roadmap for JAX-QC](#8-implementation-roadmap-for-jax-qc)
-9. [FP Abstraction Map](#9-fp-abstraction-map)
+7. [Nuclear Quantum Tunneling](#7-nuclear-quantum-tunneling)
+8. [Survey of Existing Non-BO Codes](#8-survey-of-existing-non-bo-codes)
+9. [Implementation Roadmap for JAX-QC](#9-implementation-roadmap-for-jax-qc)
+10. [FP Abstraction Map](#10-fp-abstraction-map)
 
 ---
 
@@ -643,7 +644,367 @@ making this a natural fit for JAX's `vmap` over beads.
 
 ---
 
-## 7. Survey of Existing Non-BO Codes
+## 7. Nuclear Quantum Tunneling
+
+Tunneling -- the penetration of a quantum particle through a classically
+forbidden energy barrier -- is one of the most important nuclear quantum
+effects in chemistry. It governs proton transfer rates, enzyme catalysis,
+hydrogen diffusion in solids, and tunneling splittings in molecular
+spectroscopy. Each of the three non-BO methods treats tunneling
+differently, with distinct mathematical foundations and accuracy/cost
+tradeoffs.
+
+### 7.1 The Tunneling Problem
+
+Consider a particle of mass M in a one-dimensional double-well potential
+V(x) with barrier height V_b at x = 0 and minima at x = +/- x_0:
+
+```
+V(x) = V_b (1 - x^2/x_0^2)^2    (symmetric double well)
+```
+
+**Classical mechanics**: A particle with energy E < V_b is confined to
+one well. The classically forbidden region is {x : V(x) > E}.
+
+**Quantum mechanics**: The wavefunction has non-zero amplitude in the
+forbidden region, decaying as:
+
+```
+psi(x) ~ exp( -integral_{x_1}^{x_2} kappa(x') dx' )
+
+where kappa(x) = sqrt(2M(V(x) - E)) / hbar
+```
+
+The tunneling probability through a barrier of width L and height V_b
+scales as:
+
+```
+T ~ exp( -2 integral_0^L sqrt(2M(V(x) - E)) dx / hbar )
+  ~ exp( -2L sqrt(2M V_b) / hbar )
+```
+
+This exponential sensitivity to mass and barrier height is why tunneling
+is critical for light nuclei (H, D, T) and irrelevant for heavy atoms.
+
+### 7.2 Tunneling Splittings
+
+For a symmetric double well, the ground state splits into a symmetric
+(+) and antisymmetric (-) pair separated by the tunneling splitting:
+
+```
+Delta = E_- - E_+ = (hbar omega / pi) exp(-S_inst / hbar)
+```
+
+where omega is the harmonic frequency at the well minimum and S_inst is
+the **instanton action** (the Euclidean action along the classical path
+in imaginary time that connects the two wells):
+
+```
+S_inst = integral_{-inf}^{+inf} d tau [ (1/2) M x_dot^2 + V(x) ]
+       = integral_{x_-}^{x_+} sqrt(2M V(x)) dx
+```
+
+The instanton (also called the "bounce") is the solution to Newton's
+equation in the *inverted* potential -V(x):
+
+```
+M x_ddot = +dV/dx    (note: plus sign, inverted potential)
+```
+
+with boundary conditions x(tau -> -inf) = x_- and x(tau -> +inf) = x_+.
+
+### 7.3 Tunneling in Path Integral Methods
+
+#### 7.3.1 How Ring Polymers Capture Tunneling
+
+In PIMD, tunneling manifests as the ring polymer **stretching across the
+barrier**. At sufficiently low temperature (large P), the beads
+{R^(1), ..., R^(P)} spread from one well to the other, sampling the
+classically forbidden region:
+
+```
+Classical:  all beads in one well  -> R_gyr small
+Tunneling:  beads span the barrier -> R_gyr ~ barrier width
+```
+
+The ring polymer free energy includes the tunneling contribution
+automatically through the Boltzmann weight of configurations that
+straddle the barrier.
+
+#### 7.3.2 Ring Polymer Instanton (RPI) Theory
+
+The Ring Polymer Instanton is the semiclassical limit of PIMD that gives
+tunneling rates analytically. The key idea: find the **saddle point** of
+the ring polymer potential energy surface.
+
+**Ring polymer potential**:
+
+```
+U_RP({R^(s)}) = Sum_{s=1}^{P} [ (M P / 2 beta^2 hbar^2) |R^{(s+1)} - R^{(s)}|^2 + V(R^{(s)}) ]
+```
+
+The instanton is the stationary point of U_RP that is a first-order
+saddle (one negative eigenvalue in the Hessian) corresponding to the
+ring polymer stretched across the barrier.
+
+**RPI tunneling rate** (thermal, semiclassical):
+
+```
+k_RPI = (1 / 2 pi hbar) sqrt( |lambda_1| / (2 pi)^{P-1} )
+        * ( Prod_{k=2}^{P} lambda_k )^{-1/2}
+        * exp(-beta_P U_RP^{inst})
+```
+
+where lambda_1 < 0 is the single negative Hessian eigenvalue and
+lambda_k (k >= 2) are the positive eigenvalues of the ring polymer
+Hessian at the instanton configuration.
+
+**JAX implementation advantage**: The instanton search requires:
+1. Gradient of U_RP: `jax.grad(U_RP)` -- trivial with autodiff
+2. Hessian of U_RP: `jax.hessian(U_RP)` -- automatic second derivatives
+3. Saddle-point optimization: use eigenvector-following with JAX gradients
+
+This makes the RPI approach far more practical in JAX than in traditional
+codes that require hand-coded Hessians.
+
+#### 7.3.3 Limitations of RPMD for Tunneling
+
+Standard RPMD has known deficiencies for deep tunneling:
+
+- **Overestimates barrier recrossing**: The ring polymer can recross the
+  dividing surface, leading to rate underestimation.
+- **Spurious resonance**: At low T, the ring polymer internal modes can
+  resonate with the physical barrier frequency.
+- **Correct scaling but wrong prefactor**: RPMD gives the correct
+  Arrhenius slope (dominated by exp(-S_inst/hbar)) but the prefactor
+  can be off by factors of 2-3 for asymmetric barriers.
+
+**Remedies available in the framework**:
+- Thermostatted RPMD (T-RPMD): Applies friction only to internal modes,
+  preserving centroid dynamics.
+- Ring polymer instanton rate theory: Exact semiclassical rate from the
+  saddle-point analysis (Section 7.3.2).
+
+### 7.4 Tunneling in Explicitly Correlated Gaussians
+
+#### 7.4.1 Variational Capture of Tunneling
+
+ECG captures tunneling through the **variational principle**: the basis
+set is flexible enough that the optimized wavefunction has non-zero
+amplitude in the classically forbidden region.
+
+For a double well, the ECG wavefunction:
+
+```
+Psi = Sum_k c_k exp(-alpha_k (x - s_k)^2)
+```
+
+can place Gaussian centers s_k on both sides of the barrier and inside
+the forbidden region. The linear coefficients c_k automatically produce
+the correct symmetric (+) and antisymmetric (-) combinations.
+
+**Tunneling splitting from ECG**: Solve the generalized eigenvalue
+problem for the two lowest eigenvalues E_0 and E_1:
+
+```
+Delta = E_1 - E_0
+```
+
+This is exact within the basis set completeness -- no semiclassical
+approximation is needed.
+
+#### 7.4.2 Basis Set Requirements for Tunneling
+
+Accurate tunneling splittings require ECG functions in the barrier region
+where |Psi|^2 is exponentially small. This demands:
+
+- **Wide Gaussians** (small alpha_k) that extend into the barrier.
+- **Functions centered in the forbidden region** (s_k near the barrier
+  top) to capture the evanescent wavefunction.
+- **High precision arithmetic**: the tunneling splitting can be 10^{-6}
+  times the well depth, requiring many digits of accuracy in the
+  eigensolve.
+
+The stochastic variational method (SVM) with JAX gradient refinement is
+well-suited: the gradient dE/d{s_k, alpha_k} will drive basis functions
+into the barrier region where they most reduce the energy of the
+antisymmetric state.
+
+#### 7.4.3 Multi-Dimensional Tunneling with ECG
+
+For molecular systems, tunneling occurs along a **minimum energy path**
+(MEP) in the multi-dimensional coordinate space. The ECG basis naturally
+handles this because the correlated Gaussian exponent matrices A_k
+encode multi-dimensional correlations:
+
+```
+G_k(rho) = exp(-rho^T A_k rho)
+```
+
+A large off-diagonal element (A_k)_{ij} correlates coordinates i and j,
+allowing the Gaussian to be oriented along the MEP rather than aligned
+with the Cartesian axes. This is equivalent to using the "tunneling
+path" as a natural coordinate, without explicitly constructing it.
+
+### 7.5 Tunneling in Exact Factorization
+
+#### 7.5.1 Tunneling Through the TDPES
+
+In the EF framework, nuclear tunneling appears in the exact
+time-dependent potential energy surface (TDPES) epsilon(R, t). During a
+tunneling event:
+
+```
+Before tunneling:   chi(R) localized in well A
+                    epsilon(R) ~ V_BO(R)  (standard BO surface)
+
+During tunneling:   chi(R) developing amplitude in well B
+                    epsilon(R) develops a "step" that lowers the
+                    barrier, effectively guiding chi through
+
+After tunneling:    chi(R) has amplitude in both wells
+                    epsilon(R) shows the tunneling splitting
+```
+
+The key insight: the **exact** TDPES dynamically reshapes to facilitate
+tunneling. The barrier in epsilon(R) is *lower* than the BO barrier
+V_BO(R) because it includes the electron-nuclear correlation energy
+that stabilizes the tunneling configuration.
+
+#### 7.5.2 Quantum Potential and Tunneling Force
+
+In the conditional trajectory formulation of EF, the nuclear trajectories
+obey:
+
+```
+M_A R_A_ddot = -d epsilon/dR_A - (1/2M_A) d/dR_A ( nabla_A^2 |chi| / |chi| )
+```
+
+The second term is the **quantum potential** (Bohm potential):
+
+```
+Q(R) = -(hbar^2 / 2M) nabla^2 |chi| / |chi|
+```
+
+This quantum force is what drives trajectories through the classically
+forbidden region. At the edges of the wavepacket (where |chi| is small
+and rapidly varying), Q(R) becomes large and repulsive, effectively
+"pushing" the trajectory through the barrier.
+
+For a Gaussian wavepacket chi(R) = exp(-alpha(R - R_0)^2 + ikR):
+
+```
+Q(R) = (hbar^2 alpha / M) [ 1 - 2 alpha (R - R_0)^2 ]
+```
+
+Near the center (R ~ R_0), Q is positive (repulsive), broadening the
+packet. At the tails, Q changes sign, and the interplay with the
+classical potential V(R) determines whether the trajectory tunnels.
+
+#### 7.5.3 Advantages for Tunneling
+
+The EF approach to tunneling has unique strengths:
+
+- **No semiclassical approximation**: The TDPES is exact (within
+  numerical discretization), so all tunneling orders are captured.
+- **Trajectory picture**: Individual trajectories either tunnel or
+  reflect, giving mechanistic insight.
+- **Branching ratio**: For asymmetric barriers, the EF naturally gives
+  the transmission/reflection ratio from the fraction of trajectories
+  that cross.
+
+The main challenge is numerical: the quantum potential Q(R) diverges
+where |chi| has nodes, requiring careful regularization or adaptive
+grids.
+
+### 7.6 Comparison of Tunneling Treatments
+
+| Aspect | PIMD/RPMD | RPI (Instanton) | ECG | Exact Factorization |
+|--------|-----------|-----------------|-----|---------------------|
+| **Theory level** | Exact (thermo) / approximate (dynamics) | Semiclassical | Exact (variational) | Exact |
+| **Tunneling splitting** | Indirect (from free energy) | Analytic formula | Direct eigenvalue difference | From TDPES dynamics |
+| **Tunneling rate** | From long-time correlation functions | Analytic (saddle-point) | N/A (bound states only) | From transmission coefficient |
+| **Deep tunneling** | Underestimates (RPMD) | Accurate | Exact | Exact |
+| **Multi-dimensional** | Natural (ring polymer in full space) | Requires MEP | Natural (correlated Gaussians) | Grid scaling limits dimensions |
+| **Temperature** | Finite T only | Low T (semiclassical) | T = 0 (ground state) | Any |
+| **Computational cost** | O(P * N_SCF) per step | O(P^3) for Hessian eigenvalues | O(K^3 * N!) eigensolve | Grid-based: exponential in dim |
+| **JAX advantage** | vmap over beads | jax.hessian for RPI | jax.grad for basis optimization | jax.grad for TDPES |
+
+### 7.7 Benchmark Systems for Tunneling
+
+| System | Tunneling Type | Observable | Method of Choice |
+|--------|---------------|------------|-----------------|
+| **Eckart barrier** | 1D scattering | Transmission coefficient T(E) | All (analytic reference) |
+| **Symmetric double well** | 1D bound state | Tunneling splitting Delta | ECG, RPI |
+| **H + H2 -> H2 + H** | Collinear reactive | Thermal rate k(T) | RPMD, RPI |
+| **Malonaldehyde** | Intramolecular H-transfer | Tunneling splitting (21 cm^{-1}) | PIMD, RPI |
+| **Formic acid dimer** | Double H-transfer (concerted) | Tunneling splitting | RPI |
+| **H in Pd** | Diffusion through metal | Diffusion coefficient D(T) | PIMD |
+| **Water hexamer prism** | Collective H-bond rearrangement | Tunneling splitting | RPI |
+
+#### 7.7.1 The Eckart Barrier (Analytic Reference)
+
+The Eckart barrier has an exact quantum transmission coefficient, making
+it the standard test for tunneling methods:
+
+```
+V(x) = V_0 / cosh^2(x / a)
+```
+
+Exact transmission coefficient (for energy E):
+
+```
+T(E) = [ cosh(2 pi (alpha - beta)) - 1 ] / [ cosh(2 pi (alpha + beta)) - 1 ]
+
+where alpha = (a / hbar) sqrt(2ME)
+      beta  = (a / hbar) sqrt(2M(V_0 - E))    if E < V_0
+```
+
+The **crossover temperature** separating thermal activation from
+tunneling-dominated kinetics is:
+
+```
+T_c = hbar omega_b / (2 pi k_B)
+
+where omega_b = sqrt(2 V_0 / (M a^2))  is the barrier frequency
+```
+
+Below T_c, the thermal rate is dominated by tunneling. Above T_c,
+classical over-barrier transitions dominate.
+
+#### 7.7.2 Implementation Plan for Tunneling Benchmarks
+
+```
+tunneling/eckart.py
+    - V_eckart(x, V0, a) -> potential
+    - T_exact(E, V0, a, M) -> transmission coefficient
+    - k_exact(T, V0, a, M) -> exact thermal rate (integral over T(E))
+
+tunneling/double_well.py
+    - V_double_well(x, V_b, x_0) -> potential
+    - exact_splitting_dvr(V, M, n_grid) -> Delta (DVR reference)
+    - instanton_action(V, M) -> S_inst
+    - wkb_splitting(omega, S_inst) -> Delta_WKB
+
+tunneling/rpi.py  (Ring Polymer Instanton)
+    - ring_polymer_potential(beads, V, M, P, beta)
+    - find_instanton(V, M, P, beta) -> saddle point of U_RP
+      (uses jax.grad + eigenvector-following optimizer)
+    - instanton_rate(V, M, P, beta) -> k_RPI
+      (uses jax.hessian for the fluctuation determinant)
+    - crossover_temperature(V, M) -> T_c
+
+tests/test_tunneling.py
+    - Eckart: RPMD rate vs exact within factor of 2
+    - Eckart: RPI rate vs exact within 10% below T_c
+    - Double well: ECG splitting vs DVR reference to 1%
+    - Double well: instanton splitting vs WKB to 10%
+    - Crossover temperature: T_c matches analytic formula
+```
+
+---
+
+## 8. Survey of Existing Non-BO Codes
 
 ### 7.1 Explicitly Correlated Gaussians
 
@@ -697,7 +1058,7 @@ integrator; end-to-end differentiability enables learning/optimization.
 
 ---
 
-## 8. Implementation Roadmap for JAX-QC
+## 9. Implementation Roadmap for JAX-QC
 
 ### Phase 1: PIMD (most practical, builds on existing code)
 
@@ -737,6 +1098,35 @@ Step 10: PIMD analysis + enhanced sampling (Day 15-16)
       - RPC: use fewer beads for expensive long-range forces
 - [ ] examples/13_pimd_h2.py
       - H2 nuclear delocalization at various temperatures
+
+Step 10b: Tunneling module + Ring Polymer Instanton (Day 16-17)
+---------------------------------------------------------------
+- [ ] tunneling/potentials.py
+      - V_eckart(x, V0, a) -> 1D Eckart barrier
+      - V_double_well(x, V_b, x_0) -> symmetric double well
+      - T_eckart_exact(E, V0, a, M) -> exact transmission coefficient
+      - k_eckart_exact(T, V0, a, M) -> exact thermal rate
+      - crossover_temperature(omega_b) -> T_c
+- [ ] tunneling/instanton.py
+      - ring_polymer_potential(beads, V, M, P, beta) -> U_RP
+      - ring_polymer_gradient(beads, V, M, P, beta) via jax.grad
+      - ring_polymer_hessian(beads, V, M, P, beta) via jax.hessian
+      - find_instanton(V, M, P, beta) -> saddle point (eigenvector-following)
+      - instanton_rate(V, M, P, beta) -> k_RPI from fluctuation determinant
+      - instanton_splitting(V, M, P, beta) -> Delta from instanton action
+- [ ] tunneling/wkb.py
+      - wkb_transmission(V, E, M, x_range) -> T_WKB
+      - instanton_action(V, M, x_min, x_max) -> S_inst
+      - wkb_splitting(omega, S_inst) -> Delta_WKB
+- [ ] tests/test_tunneling.py
+      - Eckart barrier: RPI rate vs exact (within factor 2 above T_c,
+        within 10% below T_c)
+      - Double well: instanton splitting vs DVR reference (within 10%)
+      - Crossover temperature: T_c matches analytic formula
+      - WKB: transmission vs exact for thin/thick barriers
+- [ ] examples/14_tunneling.py
+      - Eckart barrier: rate vs temperature (Arrhenius + tunneling crossover)
+      - Double well: tunneling splitting vs barrier height
 ```
 
 ### Phase 2: ECG (highest accuracy, few-body)
@@ -823,10 +1213,10 @@ Step 14: EF for 3D molecules (Day 26-28)
       - H2+ proton transfer: exact vs EF
 ```
 
-### Phase 4: Integration and cross-validation
+### Phase 4: Integration, tunneling benchmarks, and cross-validation
 
 ```
-Step 15: Cross-method benchmarks (Day 29-30)
+Step 15: Cross-method benchmarks (Day 29-31)
 ---------------------------------------------
 - [ ] benchmarks/non_bo_comparison.py
       - H2: BO energy vs ECG energy vs PIMD ZPE-corrected energy
@@ -835,14 +1225,27 @@ Step 15: Cross-method benchmarks (Day 29-30)
 - [ ] benchmarks/isotope_effects.py
       - H2 vs D2 vs T2: vibrational frequencies, bond lengths
       - PIMD captures mass-dependent quantum effects
-- [ ] benchmarks/tunneling.py
-      - Proton transfer in malonaldehyde (PIMD)
-      - Eckart barrier: compare exact vs PIMD transmission
+- [ ] benchmarks/tunneling_rates.py
+      - Eckart barrier: RPMD rate vs RPI rate vs exact T(E)
+        at T = 0.5 T_c, T_c, 2 T_c, 5 T_c
+      - Arrhenius plot: ln(k) vs 1/T showing tunneling crossover
+      - H + H2 collinear: RPMD rate vs exact quantum rate
+- [ ] benchmarks/tunneling_splittings.py
+      - Symmetric double well (1D):
+        ECG splitting vs RPI splitting vs DVR exact
+        as function of barrier height (V_b / hbar*omega = 1, 2, 4, 8)
+      - H2 inversion: tunneling splitting from ECG (non-BO)
+        vs harmonic approximation
+- [ ] benchmarks/proton_transfer.py
+      - Malonaldehyde H-transfer: PIMD free energy profile at 300 K
+        showing tunneling-assisted transfer
+      - KIE (kinetic isotope effect): k_H / k_D from RPMD
+        (expected ~3-10 for proton transfer reactions)
 ```
 
 ---
 
-## 9. FP Abstraction Map
+## 10. FP Abstraction Map
 
 ```
 Component                 FP Abstraction      Parallelism        Hardware
@@ -873,15 +1276,23 @@ Exact Factorization       Costate Monad       coupled equations  GPU
   Berry connection        Foldable            integral over r    GPU
   TDPES                   Foldable            integral over r    GPU
   Self-consistent loop    Fix-point (Monad)   iterate phi, chi   CPU ctrl
+
+Tunneling (RPI)           Adjunction          saddle-point opt   GPU
+  Ring polymer potential  Applicative         vmap over beads    GPU
+  Instanton search        Monad (optim)       eigvec-following   GPU
+  Fluctuation Hessian     Adjunction^2        jax.hessian        GPU
+  Rate prefactor          Foldable            det of Hessian     CPU/GPU
+  WKB integrals           Foldable            quadrature         CPU
 ```
 
 **Key JAX features exploited:**
 
 | JAX Feature | Non-BO Application |
 |-------------|-------------------|
-| `jax.grad` | ECG parameter optimization; PIMD virial estimator; EF coupling terms |
+| `jax.grad` | ECG parameter optimization; PIMD virial estimator; EF coupling terms; RPI instanton gradient |
+| `jax.hessian` | Ring polymer instanton: fluctuation determinant for tunneling rate prefactor |
 | `jax.vmap` | PIMD: evaluate energy at P beads in parallel; ECG: batch matrix elements |
-| `jax.jit` | Compile full PIMD step; JIT the ECG eigensolve loop |
+| `jax.jit` | Compile full PIMD step; JIT the ECG eigensolve loop; JIT instanton search |
 | `jax.lax.scan` | PIMD trajectory accumulation without Python loop overhead |
 | `jax.random` | SVM stochastic proposals; Langevin thermostat noise |
 | `jax.lax.cond` | SVM accept/reject without Python branching |
@@ -934,3 +1345,8 @@ accuracy.
 8. Pachucki, K.; Komasa, J. JCP 2009, 130, 164113. (High-precision ECG)
 9. Kapil, V.; et al. Comp. Phys. Comm. 2019, 236, 214-223. (i-PI)
 10. Markland, T.E.; Ceriotti, M. Nature Reviews Chemistry 2018, 2, 0109. (Nuclear quantum effects review)
+11. Richardson, J.O.; Althorpe, S.C. JCP 2009, 131, 214106. (Ring polymer instanton rate theory)
+12. Richardson, J.O. JCP 2016, 144, 114106. (RPI for tunneling splittings)
+13. Mil'nikov, G.V.; Nakamura, H. JCP 2001, 115, 6881. (Instanton approach to tunneling splittings)
+14. Rommel, J.B.; Kastner, J. JCP 2011, 134, 184107. (Practical instanton calculations)
+15. Andersson, S.; Nyman, G.; Arnaldsson, A.; Manthe, U.; Jonsson, H. JPCA 2009, 113, 4468. (Instanton rate for H+H2)
